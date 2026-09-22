@@ -1,16 +1,17 @@
+from http import HTTPStatus
 from threading import Lock
 from typing import ClassVar, Final
 
 import cattrs as cat
 import requests as rq
+import requests.adapters as rqh
 import requests.auth as rqa
 import urllib3 as u3
 
 from ceda_client.converter import converter
-from ceda_client.helpers import create_session
 from ceda_client.token import AccessToken
 
-__all__ = ["TokenAuth"]
+__all__ = ["TokenAuth", "TokenAuthRetryAdapter"]
 
 TOKEN_URL: Final = "https://services.ceda.ac.uk/api/token/create/"
 TIMEOUT_SECONDS: Final = 5
@@ -18,7 +19,23 @@ DEFAULT_RETRIES: Final = u3.Retry(total=1, allowed_methods=["post"])
 DEFAULT_POOLSIZE: Final = 10
 
 
-_session = create_session(max_retries=DEFAULT_RETRIES, pool_maxsize=DEFAULT_POOLSIZE)
+def _create_session(
+    max_retries: int | u3.Retry = DEFAULT_RETRIES,
+    pool_maxsize: int = DEFAULT_POOLSIZE,
+) -> rq.Session:
+    session = rq.Session()
+    session.trust_env = False
+    adapter = rqh.HTTPAdapter(
+        max_retries=max_retries,
+        pool_maxsize=pool_maxsize,
+    )
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    return session
+
+
+_session = _create_session()
 
 
 class TokenAuth(rqa.AuthBase):
@@ -46,6 +63,10 @@ class TokenAuth(rqa.AuthBase):
         self._url = url
         self._timeout = timeout
 
+    def __call__(self, request: rq.PreparedRequest) -> rq.PreparedRequest:
+        request.headers["Authorization"] = self.token.auth_header
+        return request
+
     @property
     def token(self) -> AccessToken:
         username = self._username
@@ -68,19 +89,18 @@ class TokenAuth(rqa.AuthBase):
                 self._cache[username] = token
             return token
 
-    def __call__(self, request: rq.PreparedRequest) -> rq.PreparedRequest:
-        request.headers["Authorization"] = self.token.auth_header
-        return request
+    def invalidate(self) -> None:
+        self.clear(self._username)
 
     @classmethod
     def clear(cls, username: str | None = None) -> None:
+        with cls._generation_lock:
+            cls._generation += 1
         if username is None:
             cls._cache.clear()
         else:
             with cls._locks.setdefault(username, Lock()):
                 cls._cache.pop(username, None)
-        with cls._generation_lock:
-            cls._generation += 1
 
     def _fetch(self, username: str, password: str) -> AccessToken:
         with _session.post(
@@ -88,3 +108,18 @@ class TokenAuth(rqa.AuthBase):
         ) as r:
             r.raise_for_status()
             return self._converter.structure(r.json(), AccessToken)
+
+
+class TokenAuthRetryAdapter(rqh.HTTPAdapter):
+    def __init__(self, auth: TokenAuth, *args, **kwargs) -> None:
+        self._auth = auth
+        super().__init__(*args, **kwargs)
+
+    def send(self, request: rq.PreparedRequest, *args, **kwargs) -> rq.Response:
+        response = super().send(request, *args, **kwargs)
+        if response.status_code == HTTPStatus.UNAUTHORIZED:
+            response.close()
+            self._auth.invalidate()
+            request = self._auth(request)
+            response = super().send(request, *args, **kwargs)
+        return response

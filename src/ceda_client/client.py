@@ -7,7 +7,6 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import StrEnum
-from http import HTTPStatus
 from typing import (
     Any,
     Final,
@@ -19,9 +18,8 @@ import requests as rq
 import upath as up
 import urllib3 as u3
 
-from ceda_client.auth import TokenAuth
+from ceda_client.auth import TokenAuthRetryAdapter, TokenAuth
 from ceda_client.converter import converter
-from ceda_client.helpers import create_session
 from ceda_client.schema import File, Listing
 from ceda_client.token import AccessToken
 
@@ -49,7 +47,7 @@ class Status(StrEnum):
 
 CEDA_ENDPOINT_URL: Final = "https://data.ceda.ac.uk/"
 DEFAULT_WORKERS: Final = 8
-DEFAULT_RETRIES: Final = 0
+DEFAULT_RETRIES: Final = 1
 DEFAULT_POOLSIZE: Final = 10
 DEFAULT_SKIP_POLICY: Final = SkipPolicy.CHECKSUM
 DEFAULT_CONNECT_TIMEOUT_SECONDS: Final = 3.05
@@ -134,7 +132,7 @@ class Client:
     @property
     def session(self) -> rq.Session:
         if self._session is None:
-            self._session = self.create_session()
+            self._session = self._create_session()
         return self._session
 
     def __enter__(self) -> Self:
@@ -148,12 +146,18 @@ class Client:
             self._session.close()
             self._session = None
 
-    def create_session(self) -> rq.Session:
-        return create_session(
+    def _create_session(self) -> rq.Session:
+        session = rq.Session()
+        session.auth = self._auth
+        session.trust_env = False
+        adapter = TokenAuthRetryAdapter(
+            auth=self._auth,
             max_retries=self.max_retries,
             pool_maxsize=self.pool_maxsize,
-            auth=self._auth,
         )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        return session
 
     def resolve_url(self, path: str) -> str:
         return urljoin(self.url, path.lstrip("/"))
@@ -223,7 +227,7 @@ class Client:
         return self._stream_batch(
             files,
             path,
-            session_factory=session_factory or self.create_session,
+            session_factory=session_factory or self._create_session,
             skip_policy=skip_policy,
             chunk_size=chunk_size,
             max_workers=max_workers,
@@ -259,13 +263,6 @@ class Client:
                         f"expected {file.md5}, got {digest.hexdigest()}"
                     )
                 tmp.replace(out)
-        except rq.HTTPError as error:
-            failed = error.response
-            if (
-                isinstance(failed, rq.Response)
-                and failed.status_code is HTTPStatus.UNAUTHORIZED
-            ):
-                self._auth.clear(self.username)
         except (KeyboardInterrupt, SystemExit) as error:
             raise error
         except BaseException as error:
