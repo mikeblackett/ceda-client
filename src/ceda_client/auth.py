@@ -19,11 +19,13 @@ class TokenAuth(rqa.AuthBase):
     _cache: ClassVar[dict[str, AccessToken]] = {}
     _locks: ClassVar[dict[str, Lock]] = {}
     _converter: ClassVar[cat.Converter] = converter
+    _generation: ClassVar[int] = 0
+    _generation_lock: ClassVar[Lock] = Lock()
 
     _username: str
     _password: str | None
     _url: str
-    _timeout: float
+    _timeout: float | tuple[float, float]
 
     def __init__(
         self,
@@ -31,7 +33,7 @@ class TokenAuth(rqa.AuthBase):
         password: str | None = None,
         *,
         url: str = TOKEN_URL,
-        timeout: float = TIMEOUT_SECONDS,
+        timeout: float | tuple[float, float] = TIMEOUT_SECONDS,
     ):
         self._username = username
         self._password = password
@@ -43,7 +45,7 @@ class TokenAuth(rqa.AuthBase):
         username = self._username
         password = self._password
         cached = self._cache.get(username)
-        if is_access_token(cached) and not cached.is_expired:
+        if cached is not None and not cached.is_expired:
             return cached
         if password is None:
             raise RuntimeError(
@@ -51,10 +53,13 @@ class TokenAuth(rqa.AuthBase):
             )
         with self._locks.setdefault(username, Lock()):  # atomic under the GIL
             cached = self._cache.get(username)
-            if is_access_token(cached) and not cached.is_expired:
+            if cached is not None and not cached.is_expired:
                 return cached
+            gen = self._generation
             token = self._fetch(username, password)
-            self._cache[username] = token
+            if gen == self._generation:
+                # avoid resurrecting cached tokens that were cleared in-flight
+                self._cache[username] = token
             return token
 
     def __call__(self, request: rq.PreparedRequest) -> rq.PreparedRequest:
@@ -71,6 +76,8 @@ class TokenAuth(rqa.AuthBase):
         else:
             with cls._locks.setdefault(username, Lock()):
                 cls._cache.pop(username, None)
+        with cls._generation_lock:
+            cls._generation += 1
 
     def _fetch(self, username: str, password: str) -> AccessToken:
         with rq.post(self._url, auth=(username, password), timeout=self._timeout) as r:

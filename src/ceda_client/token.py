@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Final, TypeIs
+from typing import Final
 
 import attrs as at
 
@@ -27,7 +27,3 @@ class AccessToken:
     @property
     def auth_header(self) -> str:
         return f"Bearer {self.value}"
-
-
-def is_access_token(value: AccessToken | None) -> TypeIs[AccessToken]:
-    return isinstance(value, AccessToken)
