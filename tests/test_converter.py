@@ -1,28 +1,28 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import pytest
 from cattrs.errors import ClassValidationError
-
+import hypothesis as hp
+import hypothesis.strategies as st
 from ceda_client.auth import AccessToken
 from ceda_client.converter import converter
 from ceda_client.schema import Directory, File, ItemType, Listing
 
 
-def test_datetime_structure_naive():
-    assert converter.structure("2025-01-02T03:04:05.678901", datetime) == datetime(
-        2025, 1, 2, 3, 4, 5, 678901
-    )
+@hp.given(st.datetimes())
+def test_datetime_structure_naive(value: datetime):
+    naive = value.replace(tzinfo=None)
+    assert converter.structure(naive.isoformat(), datetime) == naive
 
 
-def test_datetime_structure_with_z():
-    assert converter.structure("2025-01-02T03:04:05Z", datetime) == datetime(
-        2025, 1, 2, 3, 4, 5, tzinfo=timezone.utc
-    )
+@hp.given(st.datetimes(timezones=st.just(UTC)))
+def test_datetime_structure_with_tz(value: datetime):
+    assert converter.structure(value.isoformat(), datetime) == value
 
 
-def test_datetime_unstructure():
-    value = datetime(2025, 1, 2, 3, 4, 5)
-    assert converter.unstructure(value, datetime) == "2025-01-02T03:04:05"
+@hp.given(st.datetimes())
+def test_datetime_unstructure(value: datetime):
+    assert converter.unstructure(value, datetime) == value.isoformat()
 
 
 def test_datetime_invalid_raises():

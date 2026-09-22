@@ -57,7 +57,7 @@ class TokenAuth(rqa.AuthBase):
         *,
         url: str = TOKEN_URL,
         timeout: float | tuple[float, float] = TIMEOUT_SECONDS,
-    ):
+    ) -> None:
         self._username = username
         self._password = password
         self._url = url

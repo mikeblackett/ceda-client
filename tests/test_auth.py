@@ -6,7 +6,8 @@ import requests as rq
 from mock import call
 from pytest_mock import MockerFixture
 
-from ceda_client.auth import AccessToken, TokenAuth
+from ceda_client.auth import TokenAuth
+from ceda_client.token import AccessToken
 
 USERNAME = "deep_thought"
 PASSWORD = "secret"

@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-from cattrs.errors import ClassValidationError
 
 from ceda_client.converter import converter
 from ceda_client.schema import (
