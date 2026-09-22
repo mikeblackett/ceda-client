@@ -25,5 +25,9 @@ class AccessToken:
         )
 
     @property
+    def is_fresh(self) -> bool:
+        return not self.is_expired
+
+    @property
     def auth_header(self) -> str:
         return f"Bearer {self.value}"

@@ -4,6 +4,7 @@ from typing import ClassVar, Final
 import cattrs as cat
 import requests as rq
 import requests.auth as rqa
+import urllib3 as u3
 
 from ceda_client.converter import converter
 from ceda_client.helpers import create_session
@@ -13,6 +14,11 @@ __all__ = ["TokenAuth"]
 
 TOKEN_URL: Final = "https://services.ceda.ac.uk/api/token/create/"
 TIMEOUT_SECONDS: Final = 5
+DEFAULT_RETRIES: Final = u3.Retry(total=1, allowed_methods=["post"])
+DEFAULT_POOLSIZE: Final = 10
+
+
+_session = create_session(max_retries=DEFAULT_RETRIES, pool_maxsize=DEFAULT_POOLSIZE)
 
 
 class TokenAuth(rqa.AuthBase):
@@ -45,7 +51,7 @@ class TokenAuth(rqa.AuthBase):
         username = self._username
         password = self._password
         cached = self._cache.get(username)
-        if cached is not None and not cached.is_expired:
+        if cached is not None and cached.is_fresh:
             return cached
         if password is None:
             raise RuntimeError(
@@ -53,7 +59,7 @@ class TokenAuth(rqa.AuthBase):
             )
         with self._locks.setdefault(username, Lock()):  # atomic under the GIL
             cached = self._cache.get(username)
-            if cached is not None and not cached.is_expired:
+            if cached is not None and cached.is_fresh:
                 return cached
             gen = self._generation
             token = self._fetch(username, password)
@@ -66,9 +72,6 @@ class TokenAuth(rqa.AuthBase):
         request.headers["Authorization"] = self.token.auth_header
         return request
 
-    def invalidate(self) -> None:
-        self.__class__.clear(self._username)
-
     @classmethod
     def clear(cls, username: str | None = None) -> None:
         if username is None:
@@ -80,6 +83,8 @@ class TokenAuth(rqa.AuthBase):
             cls._generation += 1
 
     def _fetch(self, username: str, password: str) -> AccessToken:
-        with rq.post(self._url, auth=(username, password), timeout=self._timeout) as r:
+        with _session.post(
+            self._url, auth=(username, password), timeout=self._timeout
+        ) as r:
             r.raise_for_status()
             return self._converter.structure(r.json(), AccessToken)

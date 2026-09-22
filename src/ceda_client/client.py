@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import StrEnum
+from http import HTTPStatus
 from typing import (
     Any,
     Final,
@@ -15,14 +16,14 @@ from typing import (
 from urllib.parse import urljoin
 
 import requests as rq
-import requests.adapters as rqa
 import upath as up
 import urllib3 as u3
 
 from ceda_client.auth import TokenAuth
-from ceda_client.token import AccessToken
-from ceda_client.schema import File, Listing
 from ceda_client.converter import converter
+from ceda_client.helpers import create_session
+from ceda_client.schema import File, Listing
+from ceda_client.token import AccessToken
 
 __all__ = ["Client", "ResultBatch", "Result"]
 
@@ -148,16 +149,11 @@ class Client:
             self._session = None
 
     def create_session(self) -> rq.Session:
-        session = rq.Session()
-        session.auth = self._auth
-        session.trust_env = False
-        adapter = rqa.HTTPAdapter(
+        return create_session(
             max_retries=self.max_retries,
             pool_maxsize=self.pool_maxsize,
+            auth=self._auth,
         )
-        session.mount("https://", adapter)
-        session.mount("http://", adapter)
-        return session
 
     def resolve_url(self, path: str) -> str:
         return urljoin(self.url, path.lstrip("/"))
@@ -263,6 +259,13 @@ class Client:
                         f"expected {file.md5}, got {digest.hexdigest()}"
                     )
                 tmp.replace(out)
+        except rq.HTTPError as error:
+            failed = error.response
+            if (
+                isinstance(failed, rq.Response)
+                and failed.status_code is HTTPStatus.UNAUTHORIZED
+            ):
+                self._auth.clear(self.username)
         except (KeyboardInterrupt, SystemExit) as error:
             raise error
         except BaseException as error:
