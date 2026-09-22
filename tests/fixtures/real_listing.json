@@ -1,0 +1,70 @@
+{
+ "path": "/mixed",
+ "items": [
+  {
+   "ext": "",
+   "path": "/neodc/00README",
+   "size": 369,
+   "name": "00README",
+   "location": [
+    "on_disk"
+   ],
+   "type": "file",
+   "fileset": "neodc",
+   "directory": "/neodc",
+   "last_modified": "2023-12-15T14:55:41.395786",
+   "content": "<img src=\"https://artefacts.ceda.ac.uk/themes/b3orgtheme_ceda_serv/0.1/_assets/img/fav.png\" alt=\"CEDA logo\" style=\"width:16px;height:16px;\"> The Centre for Environmental Data Analysis Archive - Earth Observation Data <a class='pl-1' href = 'https://catalogue.ceda.ac.uk/' title = 'Search CEDA Data Catalogue' data-toggle='tooltip'><i class='fa fa-info-circle'></i></a>\n",
+   "last_audit": "2026-07-19T07:32:21.308236",
+   "md5": "77be50d2fc75a30d173eb231934ab647",
+   "download": "https://dap.ceda.ac.uk/neodc/00README?download=1"
+  },
+  {
+   "path": "/neodc/arsf",
+   "name": "arsf",
+   "location": [
+    null
+   ],
+   "fileset": "arsf",
+   "type": "dir",
+   "directory": "/neodc",
+   "last_modified": "2026-06-18T11:30:03"
+  },
+  {
+   "path": "/neodc/ard4ceos",
+   "name": "ard4ceos",
+   "location": [
+    null
+   ],
+   "type": "dir",
+   "fileset": "neodc",
+   "directory": "/neodc"
+  },
+  {
+   "path": "/neodc/avhrr-3",
+   "name": "avhrr-3",
+   "location": [
+    null
+   ],
+   "readme": "EPS Metop -  Advanced Very High Resolution Radiometer-3 (AVHRR-3)\n===========================================================================\n\n",
+   "type": "link",
+   "fileset": "neodc",
+   "directory": "/neodc",
+   "target": "/neodc/avhrr3_metop_a"
+  },
+  {
+   "ext": "",
+   "path": "/pdc/00README",
+   "size": 313,
+   "name": "00README",
+   "location": "on_disk",
+   "type": "file",
+   "fileset": "pdc",
+   "directory": "/pdc",
+   "last_modified": "2023-12-15T14:55:21.879852",
+   "content": "<img src=\"https://www.bas.ac.uk/wp-content/themes/baspress/favicons/favicon-32x32.png\" alt=\"BAS logo\" style=\"width:16px;height:16px;\"> The Polar Data Centre <a class='pl-1' href = 'https://www.bas.ac.uk/project/dms/' title = 'Search PDC Data Catalogue' data-toggle='tooltip'><i class='fa fa-info-circle'></i></a>\n",
+   "last_audit": "2026-08-22T12:24:50.968777",
+   "md5": "0987f2af778ccf3213b42677a7bae28e",
+   "download": "https://dap.ceda.ac.uk/pdc/00README?download=1"
+  }
+ ]
+}

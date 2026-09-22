@@ -1,0 +1,25 @@
+[project]
+name = "ceda-client"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Mike Blackett", email = "27811528+mikeblackett@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "attrs>=26.1.0",
+    "cattrs==26.2.0",
+    "requests>=2.34.2",
+    "universal-pathlib>=0.3.10",
+]
+
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.6.4",
+    "pytest>=8.4.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.29,<0.10.0"]
+build-backend = "uv_build"
