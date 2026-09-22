@@ -10,7 +10,6 @@ from enum import StrEnum
 from typing import (
     Any,
     Final,
-    Literal,
     Self,
 )
 from urllib.parse import urljoin
@@ -20,8 +19,9 @@ import requests.adapters as rqa
 import upath as up
 import urllib3 as u3
 
-from ceda_client.auth import AccessToken, TokenAuth
-from ceda_client.schema import File, Listing, Location
+from ceda_client.auth import TokenAuth
+from ceda_client.token import AccessToken
+from ceda_client.schema import File, Listing
 from ceda_client.converter import converter
 
 __all__ = ["Client", "ResultBatch", "Result"]

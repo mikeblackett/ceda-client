@@ -6,7 +6,8 @@ import requests as rq
 import requests.auth as rqa
 
 from ceda_client.converter import converter
-from ceda_client.token import AccessToken, is_access_token
+from ceda_client.helpers import create_session
+from ceda_client.token import AccessToken
 
 __all__ = ["TokenAuth"]
 
