@@ -6,8 +6,7 @@ from typing import TypeIs
 
 import attrs as at
 
-
-__all__ = ["File", "Directory", "Link", "Listing"]
+__all__ = ["Directory", "File", "Link", "Listing"]
 
 
 class ItemType(StrEnum):

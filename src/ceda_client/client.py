@@ -18,12 +18,12 @@ import requests as rq
 import upath as up
 import urllib3 as u3
 
-from ceda_client.auth import TokenAuthRetryAdapter, TokenAuth
+from ceda_client.auth import TokenAuth, TokenAuthRetryAdapter
 from ceda_client.converter import converter
 from ceda_client.schema import File, Listing
 from ceda_client.token import AccessToken
 
-__all__ = ["Client", "ResultBatch", "Result"]
+__all__ = ["Client", "Result", "ResultBatch"]
 
 
 class SkipPolicy(StrEnum):
@@ -349,6 +349,7 @@ def _verify_file_size(path: up.UPath, size: int) -> bool:
 
 
 def _verify_checksum(path: up.UPath, md5: str) -> bool:
+    # TODO: checksum only works for local filesystem files
     if not path.exists():
         return False
     with path.open("rb") as file:

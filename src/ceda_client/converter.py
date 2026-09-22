@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 import cattrs as cat
 from cattrs.strategies import configure_tagged_union

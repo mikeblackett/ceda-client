@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Final
 
 import attrs as at
-
 
 __all__ = ["AccessToken"]
 
@@ -19,10 +18,8 @@ class AccessToken:
         expires = self.expires_at
         if expires.tzinfo is None:
             # Assume naive datetime are in UTC
-            expires = expires.replace(tzinfo=timezone.utc)
-        return expires < datetime.now(timezone.utc) + timedelta(
-            minutes=EXPIRY_MARGIN_MINUTES
-        )
+            expires = expires.replace(tzinfo=UTC)
+        return expires < datetime.now(UTC) + timedelta(minutes=EXPIRY_MARGIN_MINUTES)
 
     @property
     def is_fresh(self) -> bool:
