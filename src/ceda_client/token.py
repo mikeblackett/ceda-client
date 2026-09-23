@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Final
+from typing import ClassVar, Final
 
 import attrs as at
 
@@ -17,8 +17,12 @@ def is_token_expired(expires_at: datetime, now: datetime) -> bool:
 
 @at.define(frozen=True)
 class AccessToken:
-    value: str = at.field(alias="access_token", repr=False)
-    expires_at: datetime = at.field(alias="expires")
+    value: str = at.field(repr=False)
+    expires_at: datetime
+    _aliases: ClassVar[dict[str, str]] = {
+        "value": "access_token",
+        "expires_at": "expires",
+    }
 
     @property
     def is_expired(self) -> bool:

@@ -20,6 +20,10 @@ def _is_item(typ: Any) -> bool:
     return isinstance(typ, type) and issubclass(typ, Item)
 
 
+def _rename_overrides(typ: type) -> dict[str, Any]:
+    return {name: cat.override(rename=key) for name, key in typ._aliases.items()}
+
+
 @converter.register_structure_hook
 def structure_datetime(value: str, typ: datetime) -> datetime:
     return datetime.fromisoformat(value)
@@ -33,14 +37,14 @@ def unstructure_datetime(value: datetime) -> str:
 @converter.register_structure_hook_factory(_is_token)
 def structure_token_factory(typ: type, converter: cat.Converter):
     return cat.gen.make_dict_structure_fn(
-        cl=typ, converter=converter, _cattrs_use_alias=True
+        cl=typ, converter=converter, **_rename_overrides(typ)
     )
 
 
 @converter.register_unstructure_hook_factory(_is_token)
 def unstructure_token_factory(typ: type, converter: cat.Converter):
     return cat.gen.make_dict_unstructure_fn(
-        cl=typ, converter=converter, _cattrs_use_alias=True
+        cl=typ, converter=converter, **_rename_overrides(typ)
     )
 
 
@@ -56,15 +60,15 @@ def _structure_item_factory(typ: type, conv: cat.Converter):
     return cat.gen.make_dict_structure_fn(
         cl=typ,
         converter=conv,
-        _cattrs_use_alias=True,
         location=cat.override(struct_hook=structure_location),
+        **_rename_overrides(typ),
     )
 
 
 @converter.register_unstructure_hook_factory(_is_item)
 def unstructure_item_factory(typ: type, converter: cat.Converter):
     return cat.gen.make_dict_unstructure_fn(
-        cl=typ, converter=converter, _cattrs_use_alias=True
+        cl=typ, converter=converter, **_rename_overrides(typ)
     )
 
 

@@ -27,8 +27,8 @@ def token_cache():
     """Seed the class-level token cache so no network auth happens."""
     TokenAuth.clear()
     TokenAuth._cache[USER] = AccessToken(
-        access_token=FAKE_TOKEN,
-        expires=datetime.now(UTC) + timedelta(hours=1),
+        value=FAKE_TOKEN,
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
     )
     yield
     TokenAuth.clear()
@@ -38,8 +38,8 @@ def token_cache():
 def fresh_cache():
     TokenAuth.clear()
     TokenAuth._cache[USER] = AccessToken(
-        access_token=FAKE_TOKEN,
-        expires=datetime.now(UTC) + timedelta(days=3),
+        value=FAKE_TOKEN,
+        expires_at=datetime.now(UTC) + timedelta(days=3),
     )
     yield
     TokenAuth.clear()
@@ -49,8 +49,8 @@ def fresh_cache():
 def stale_cache():
     TokenAuth.clear()
     TokenAuth._cache[USER] = AccessToken(
-        access_token=FAKE_TOKEN,
-        expires=datetime.now(UTC) - timedelta(hours=1),
+        value=FAKE_TOKEN,
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
     )
     yield
     TokenAuth.clear()

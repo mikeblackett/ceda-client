@@ -35,8 +35,8 @@ def access_tokens(
         timezones = st.just(epoch.tzinfo)
 
     return AccessToken(
-        access_token=draw(tokens),
-        expires=draw(
+        value=draw(tokens),
+        expires_at=draw(
             st.datetimes(
                 min_value=epoch + min_timedelta,
                 max_value=epoch + max_timedelta,

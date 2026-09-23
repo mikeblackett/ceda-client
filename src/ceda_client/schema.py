@@ -2,7 +2,7 @@ from abc import ABC
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import TypeIs
+from typing import ClassVar, TypeIs
 
 import attrs as at
 
@@ -27,8 +27,9 @@ class _Base(ABC):
 
 @at.define(frozen=True, slots=True, kw_only=True)
 class Item(_Base):
-    _type: ItemType = at.field(alias="type", repr=False)
+    _type: ItemType = at.field(repr=False)
     last_modified: datetime | None = None
+    _aliases: ClassVar[dict[str, str]] = {"_type": "type"}
 
     @property
     def name(self) -> str:
@@ -41,10 +42,11 @@ class Item(_Base):
 
 @at.define(frozen=True, slots=True, kw_only=True)
 class File(Item):
-    download_url: str = at.field(alias="download")
+    download_url: str
     location: list[Location]
     md5: str
     size: int
+    _aliases: ClassVar[dict[str, str]] = {**Item._aliases, "download_url": "download"}
 
     @property
     def extension(self) -> str:

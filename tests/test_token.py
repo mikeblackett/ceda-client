@@ -61,11 +61,11 @@ def test_property_fresh_for_future_token(token: AccessToken):
 
 @hp.given(value=st.text(min_size=1))
 def test_auth_header(value: str):
-    token = AccessToken(access_token=value, expires=datetime.now(UTC))
+    token = AccessToken(value=value, expires_at=datetime.now(UTC))
     assert token.auth_header == f"Bearer {value}"
 
 
 def test_token_repr_hides_value():
     secret = "super-secret-token-value"
-    token = AccessToken(access_token=secret, expires=datetime.now(UTC))
+    token = AccessToken(value=secret, expires_at=datetime.now(UTC))
     assert secret not in repr(token)
