@@ -2,7 +2,7 @@ import hashlib
 import json
 import threading
 from base64 import b64encode
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -25,13 +25,35 @@ def _md5(data: bytes) -> str:
 @pytest.fixture
 def token_cache():
     """Seed the class-level token cache so no network auth happens."""
-    TokenAuth.clear(USER)
+    TokenAuth.clear()
     TokenAuth._cache[USER] = AccessToken(
         access_token=FAKE_TOKEN,
-        expires=datetime.now(timezone.utc) + timedelta(hours=1),
+        expires=datetime.now(UTC) + timedelta(hours=1),
     )
     yield
-    TokenAuth.clear(USER)
+    TokenAuth.clear()
+
+
+@pytest.fixture
+def fresh_cache():
+    TokenAuth.clear()
+    TokenAuth._cache[USER] = AccessToken(
+        access_token=FAKE_TOKEN,
+        expires=datetime.now(UTC) + timedelta(days=3),
+    )
+    yield
+    TokenAuth.clear()
+
+
+@pytest.fixture
+def stale_cache():
+    TokenAuth.clear()
+    TokenAuth._cache[USER] = AccessToken(
+        access_token=FAKE_TOKEN,
+        expires=datetime.now(UTC) - timedelta(hours=1),
+    )
+    yield
+    TokenAuth.clear()
 
 
 @pytest.fixture
@@ -77,9 +99,7 @@ def ceda_server():
                 body = json.dumps(
                     {
                         "access_token": FAKE_TOKEN,
-                        "expires": (
-                            datetime.now(timezone.utc) + timedelta(hours=1)
-                        ).isoformat(),
+                        "expires": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
                     }
                 ).encode()
                 self._send(200, body, "application/json")

@@ -1,66 +1,61 @@
 from datetime import UTC, datetime, timedelta
 
-import hypothesis.strategies as st
 import pytest as pt
 import requests as rq
-from mock import call
 from pytest_mock import MockerFixture
 
 from ceda_client.auth import TokenAuth
 from ceda_client.token import AccessToken
 
-USERNAME = "deep_thought"
-PASSWORD = "secret"
-TOKEN_VALUE = "42"
+from .conftest import FAKE_TOKEN, PASS, USER
 
 
-def test_token_fetched(mocker: MockerFixture):
-    TokenAuth.clear()
+def test_returns_cached_token(fresh_cache, mocker: MockerFixture):
+    # fresh_cache fixture populates cache with fresh USER: FAKE_TOKEN
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
-        return_value=AccessToken(TOKEN_VALUE, datetime.now(UTC) + timedelta(days=3)),
+        return_value=AccessToken(
+            "fetched-token-xyz", datetime.now(UTC) + timedelta(days=3)
+        ),
     )
-    TokenAuth(USERNAME, PASSWORD).token
-    mock.assert_called_once()
-    TokenAuth.clear()
 
+    token = TokenAuth(USER, PASS).token
+    assert token.value == FAKE_TOKEN
+    token = TokenAuth(USER).token
+    assert token.value == FAKE_TOKEN
 
-def test_token_returned_from_cache(mocker: MockerFixture):
-    cached = AccessToken("cached", datetime.now(UTC) + timedelta(minutes=30))
-    TokenAuth._cache[USERNAME] = cached
-    mock = mocker.patch(
-        "ceda_client.auth.TokenAuth._fetch",
-        return_value=AccessToken("fetched", datetime.now(UTC) + timedelta(days=3)),
-    )
-    assert TokenAuth(USERNAME, PASSWORD).token is cached
-    assert TokenAuth(USERNAME).token is cached
     mock.assert_not_called()
-    TokenAuth.clear()
 
 
-def test_expired_token_triggers_refetch(mocker: MockerFixture):
-    cached = AccessToken("cached", datetime.now(UTC) - timedelta(minutes=3))
-    TokenAuth._cache[USERNAME] = cached
+def test_fetches_fresh_token(stale_cache, mocker: MockerFixture):
+    # stale_cache fixture populates cache with stale USER: FAKE_TOKEN
+    fetched = AccessToken("fresh-token-xyz", datetime.now(UTC) + timedelta(days=3))
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
-        return_value=AccessToken(TOKEN_VALUE, datetime.now(UTC) + timedelta(days=3)),
+        return_value=fetched,
     )
-    assert TokenAuth(USERNAME, PASSWORD).token is not cached
+
+    token = TokenAuth(USER, PASS).token
+
+    assert token is fetched
     mock.assert_called_once()
+
+
+def test_fetches_token_when_cache_empty(mocker: MockerFixture):
     TokenAuth.clear()
-
-
-def test_tokens_are_scoped_to_username(mocker: MockerFixture):
+    fetched = AccessToken("fresh-token-xyz", datetime.now(UTC) + timedelta(days=3))
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
-        return_value=AccessToken(TOKEN_VALUE, datetime.now(UTC) + timedelta(days=3)),
+        return_value=fetched,
     )
-    TokenAuth("paul", "super-secret").token
-    TokenAuth("peter", "super-duper-secret").token
-    mock.assert_has_calls(
-        [call("paul", "super-secret"), call("peter", "super-duper-secret")],
-    )
-    TokenAuth.clear()
+
+    token = TokenAuth(USER, PASS).token
+
+    assert token is fetched
+    mock.assert_called_once_with(USER, PASS)
+
+    assert TokenAuth(USER).token is fetched
+    mock.assert_called_once()
 
 
 def test_token_requires_password_when_no_cache():
@@ -68,32 +63,47 @@ def test_token_requires_password_when_no_cache():
         TokenAuth("nobody-here").token
 
 
-def test_call_sets_authorization_header(mocker):
-    TokenAuth._cache[USERNAME] = AccessToken(
-        TOKEN_VALUE, datetime.now(UTC) + timedelta(days=3)
+def test_tokens_are_scoped_to_username(fresh_cache, mocker: MockerFixture):
+    fresh = AccessToken("fresh-token-xyz", datetime.now(UTC) + timedelta(days=3))
+    mock = mocker.patch(
+        "ceda_client.auth.TokenAuth._fetch",
+        return_value=fresh,
     )
-    try:
-        request = rq.PreparedRequest()
-        request.prepare(method="GET", url="https://example.com")
-        TokenAuth(USERNAME, PASSWORD)(request)
-        assert request.headers["Authorization"] == f"Bearer {TOKEN_VALUE}"
-    finally:
-        TokenAuth.clear()
+    credentials = ("new_user", "super-secret")
+
+    TokenAuth(USER, PASS).token
+    TokenAuth(*credentials).token
+
+    mock.assert_called_once_with(*credentials)
 
 
-def test_clear():
-    TokenAuth.clear()
+def test_call_sets_authorization_header(fresh_cache, mocker: MockerFixture):
+    mock = mocker.patch(
+        # mock _fetch so this test does not depend on previous tests passing
+        "ceda_client.auth.TokenAuth._fetch",
+        return_value=AccessToken(
+            "never-returned", datetime.now(UTC) + timedelta(hours=1)
+        ),
+    )
+    request = rq.PreparedRequest()
+    request.prepare(method="GET", url="https://example.com")
+
+    TokenAuth(USER, PASS)(request)
+
+    assert request.headers["Authorization"] == f"Bearer {FAKE_TOKEN}"
+    mock.assert_not_called()
+
+
+def test_clear(fresh_cache):
     try:
-        TokenAuth._cache[USERNAME] = AccessToken(
+        assert USER in TokenAuth._cache
+        assert TokenAuth(USER).invalidate() is None
+        assert USER not in TokenAuth._cache
+        TokenAuth._cache[USER] = AccessToken(
             "abc", datetime.now(UTC) + timedelta(hours=1)
         )
-        assert TokenAuth(USERNAME).clear() is None
-        assert USERNAME not in TokenAuth._cache
-        TokenAuth._cache[USERNAME] = AccessToken(
-            "abc", datetime.now(UTC) + timedelta(hours=1)
-        )
-        TokenAuth.clear(USERNAME)
-        assert USERNAME not in TokenAuth._cache
+        TokenAuth.clear(USER)
+        assert USER not in TokenAuth._cache
         TokenAuth.clear()  # clears everything, must not raise
     finally:
         TokenAuth.clear()
