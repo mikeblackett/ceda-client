@@ -1,10 +1,9 @@
 import hashlib
 import json
 import threading
-from base64 import b64encode
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from types import SimpleNamespace
+from typing import cast
 from urllib.parse import urlparse
 
 import pytest
@@ -58,14 +57,14 @@ def stale_cache():
 
 @pytest.fixture
 def ceda_server():
-    """A local HTTP server that mimics the CEDA data + token endpoints."""
+    """A local HTTP server that mimics the CEDA data endpoints."""
+
+    class _Server(ThreadingHTTPServer):
+        files: dict[str, bytes]
+        listing: dict
 
     class Handler(BaseHTTPRequestHandler):
-        files: dict[str, bytes] = {}
-        listing: dict = {}
-        token_hits: list[int] = []
-
-        def log_message(self, *args):
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
         def _send(self, code, body: bytes, ctype="application/octet-stream"):
@@ -76,33 +75,16 @@ def ceda_server():
             self.wfile.write(body)
 
         def do_GET(self):
+            server = cast(_Server, self.server)
             path = urlparse(self.path).path
             if path.startswith("/files/"):
                 name = path.removeprefix("/files/")
-                if name in self.files:
-                    self._send(200, self.files[name])
+                if name in server.files:
+                    self._send(200, server.files[name])
                 else:
                     self._send(404, b"not found")
             elif path.startswith("/data/"):
-                self._send(200, json.dumps(self.listing).encode(), "application/json")
-            else:
-                self._send(404, b"not found")
-
-        def do_POST(self):
-            path = urlparse(self.path).path
-            if path == "/token":
-                self.token_hits.append(1)
-                expected = "Basic " + b64encode(f"{USER}:{PASS}".encode()).decode()
-                if self.headers.get("Authorization") != expected:
-                    self._send(401, b"unauthorized", "application/json")
-                    return
-                body = json.dumps(
-                    {
-                        "access_token": FAKE_TOKEN,
-                        "expires": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
-                    }
-                ).encode()
-                self._send(200, body, "application/json")
+                self._send(200, json.dumps(server.listing).encode(), "application/json")
             else:
                 self._send(404, b"not found")
 
@@ -113,7 +95,7 @@ def ceda_server():
         # listing claims a different md5 than the served content
         "corrupt.nc": b"corrupt-content",
     }
-    httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    httpd = _Server(("127.0.0.1", 0), Handler)
     port = httpd.server_address[1]
     base = f"http://127.0.0.1:{port}"
 
@@ -154,16 +136,16 @@ def ceda_server():
         }
     )
 
-    Handler.files = files
-    Handler.listing = {"path": f"/{DATA_DIR}", "items": items}
+    httpd.files = files
+    httpd.listing = {"path": f"/{DATA_DIR}", "items": items}
 
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
-    yield SimpleNamespace(url=f"{base}/", handler=Handler, files=files)
+    yield f"{base}/"
     httpd.shutdown()
     thread.join(timeout=5)
 
 
 @pytest.fixture
 def client(ceda_server, token_cache):
-    return Client(USER, PASS, url=ceda_server.url)
+    return Client(USER, PASS, url=ceda_server)
