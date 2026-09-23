@@ -1,6 +1,7 @@
 import upath as up
-from ceda_client.converter import converter
+
 from ceda_client.client import Result, ResultBatch, Status
+from ceda_client.converter import converter
 from ceda_client.schema import File
 
 

@@ -1,12 +1,13 @@
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 
-import pytest
-from cattrs.errors import ClassValidationError
 import hypothesis as hp
 import hypothesis.strategies as st
+import pytest
+from cattrs.errors import ClassValidationError
+
 from ceda_client.auth import AccessToken
 from ceda_client.converter import converter
-from ceda_client.schema import Directory, File, ItemType, Listing
+from ceda_client.schema import File, Listing
 
 
 @hp.given(st.datetimes())
@@ -26,7 +27,7 @@ def test_datetime_unstructure(value: datetime):
 
 
 def test_datetime_invalid_raises():
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         converter.structure("not-a-date", datetime)
 
 

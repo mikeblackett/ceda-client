@@ -126,7 +126,7 @@ def test_tape_only_file():
 
 
 def test_unknown_item_type_raises():
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         converter.structure(
             {
                 "path": "/x",

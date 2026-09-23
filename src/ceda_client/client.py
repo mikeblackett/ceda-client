@@ -264,8 +264,8 @@ class Client:
                     )
                 tmp.replace(out)
         except (KeyboardInterrupt, SystemExit) as error:
-            raise error
-        except BaseException as error:
+            raise error  # noqa: TRY201
+        except BaseException as error:  # noqa: BLE001
             tmp.unlink(missing_ok=True)
             return Result.fail(file, out, error)
         return Result.succeed(file, out)
@@ -312,7 +312,7 @@ class Client:
                     raw_results.append(future.result())
             except (KeyboardInterrupt, SystemExit) as error:
                 executor.shutdown(cancel_futures=True)
-                raise error
+                raise error  # noqa: TRY201
             finally:
                 for session in created:
                     session.close()

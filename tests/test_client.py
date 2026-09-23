@@ -1,7 +1,4 @@
-from pathlib import Path
-
 import pytest
-import upath as up
 
 from ceda_client.client import SkipPolicy, Status
 
@@ -17,7 +14,14 @@ def test_resolve_url(client):
 def test_get_listing(client):
     listing = client.get_listing(DATA_DIR)
     names = {i.name for i in listing.items}
-    assert names == {"alpha.nc", "beta.nc", "gamma.txt", "corrupt.nc", "sub", "missing.nc"}
+    assert names == {
+        "alpha.nc",
+        "beta.nc",
+        "gamma.txt",
+        "corrupt.nc",
+        "sub",
+        "missing.nc",
+    }
     assert len(listing.files) == 5
     assert len(listing.directories) == 1
 

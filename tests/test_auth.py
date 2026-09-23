@@ -60,7 +60,7 @@ def test_fetches_token_when_cache_empty(mocker: MockerFixture):
 
 def test_token_requires_password_when_no_cache():
     with pt.raises(RuntimeError):
-        TokenAuth("nobody-here").token
+        TokenAuth("nobody-here").token  # noqa: B018
 
 
 def test_tokens_are_scoped_to_username(fresh_cache, mocker: MockerFixture):
@@ -71,8 +71,8 @@ def test_tokens_are_scoped_to_username(fresh_cache, mocker: MockerFixture):
     )
     credentials = ("new_user", "super-secret")
 
-    TokenAuth(USER, PASS).token
-    TokenAuth(*credentials).token
+    TokenAuth(USER, PASS).token  # noqa: B018
+    TokenAuth(*credentials).token  # noqa: B018
 
     mock.assert_called_once_with(*credentials)
 
