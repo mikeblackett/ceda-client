@@ -14,15 +14,6 @@ PASSWORD = "secret"
 TOKEN_VALUE = "42"
 
 
-@st.composite
-def access_tokens(
-    draw: st.DrawFn,
-    value: st.SearchStrategy[str],
-    expires_at: st.SearchStrategy[datetime],
-):
-    return AccessToken(access_token=draw(value), expires=draw(expires_at))
-
-
 def test_token_fetched(mocker: MockerFixture):
     TokenAuth.clear()
     mock = mocker.patch(

@@ -3,9 +3,16 @@ from typing import Final
 
 import attrs as at
 
-__all__ = ["AccessToken"]
+__all__ = ["AccessToken", "is_token_expired"]
 
 EXPIRY_MARGIN_MINUTES: Final = 5
+
+
+def is_token_expired(expires_at: datetime, now: datetime) -> bool:
+    if expires_at.tzinfo is None:
+        # Assume naive datetime are in UTC
+        expires_at = expires_at.replace(tzinfo=UTC)
+    return expires_at < now + timedelta(minutes=EXPIRY_MARGIN_MINUTES)
 
 
 @at.define(frozen=True)
@@ -15,11 +22,7 @@ class AccessToken:
 
     @property
     def is_expired(self) -> bool:
-        expires = self.expires_at
-        if expires.tzinfo is None:
-            # Assume naive datetime are in UTC
-            expires = expires.replace(tzinfo=UTC)
-        return expires < datetime.now(UTC) + timedelta(minutes=EXPIRY_MARGIN_MINUTES)
+        return is_token_expired(self.expires_at, datetime.now(UTC))
 
     @property
     def is_fresh(self) -> bool:
