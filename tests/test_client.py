@@ -251,7 +251,6 @@ def test_client_reauths_on_401(client, ceda_server, mocker: MockerFixture):
 
 
 def test_client_context_manager_closes_session(client):
-    _ = client.session  # force creation
     with client:
         assert client.session is not None
     assert client._session is None

@@ -117,7 +117,6 @@ class Client:
         url: str = CEDA_ENDPOINT_URL,
     ) -> None:
         self._auth = TokenAuth(username, password)
-        self._session: rq.Session | None = None
 
         self.username = username
         self.max_retries = max_retries
@@ -126,6 +125,8 @@ class Client:
         self.connect_timeout = connect_timeout
         self.read_timeout = read_timeout
         self.url = url
+
+        self._session: rq.Session | None = self._create_session()
 
     @property
     def token(self) -> AccessToken:
