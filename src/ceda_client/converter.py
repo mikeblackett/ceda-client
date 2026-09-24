@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import cattrs as cat
@@ -26,7 +26,9 @@ def _rename_overrides(typ: type) -> dict[str, Any]:
 
 @converter.register_structure_hook
 def structure_datetime(value: str, typ: datetime) -> datetime:
-    return datetime.fromisoformat(value)
+    dt = datetime.fromisoformat(value)
+    # CEDA sends naive timestamps in UTC
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 @converter.register_unstructure_hook

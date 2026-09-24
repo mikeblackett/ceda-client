@@ -10,7 +10,7 @@ EXPIRY_MARGIN_MINUTES: Final = 5
 
 def is_token_expired(expires_at: datetime, now: datetime) -> bool:
     if expires_at.tzinfo is None:
-        # Assume naive datetime are in UTC
+        # Assume naive datetimes are in UTC
         expires_at = expires_at.replace(tzinfo=UTC)
     return expires_at < now + timedelta(minutes=EXPIRY_MARGIN_MINUTES)
 

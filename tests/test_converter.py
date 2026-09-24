@@ -13,7 +13,7 @@ from ceda_client.schema import File, Listing
 @hp.given(st.datetimes())
 def test_datetime_structure_naive(value: datetime):
     naive = value.replace(tzinfo=None)
-    assert converter.structure(naive.isoformat(), datetime) == naive
+    assert converter.structure(naive.isoformat(), datetime) == naive.replace(tzinfo=UTC)
 
 
 @hp.given(st.datetimes(timezones=st.just(UTC)))
