@@ -314,17 +314,18 @@ class Client:
             )
 
         raw_results: list[Result] = []
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            try:
-                futures = tuple(executor.submit(task, f) for f in files)
-                for future in as_completed(futures):
-                    raw_results.append(future.result())
-            except (KeyboardInterrupt, SystemExit) as error:
-                executor.shutdown(cancel_futures=True)
-                raise error  # noqa: TRY201
-            finally:
-                for session in created:
-                    session.close()
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                try:
+                    futures = tuple(executor.submit(task, f) for f in files)
+                    for future in as_completed(futures):
+                        raw_results.append(future.result())
+                except (KeyboardInterrupt, SystemExit) as error:
+                    executor.shutdown(cancel_futures=True)
+                    raise error  # noqa: TRY201
+        finally:
+            for session in created:
+                session.close()
 
         results = ResultBatch(tuple(raw_results))
         return results
