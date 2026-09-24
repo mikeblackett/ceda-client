@@ -60,7 +60,7 @@ def test_directory_null_location_structures():
         ).directories
         if d.name == "arsf"
     )
-    assert directory._type is ItemType.DIR
+    assert directory._type is ItemType.DIRECTORY
 
 
 def test_missing_last_modified_defaults_to_none():

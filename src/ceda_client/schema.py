@@ -11,7 +11,7 @@ __all__ = ["Directory", "File", "Link", "Listing"]
 
 class ItemType(StrEnum):
     FILE = "file"
-    DIR = "dir"
+    DIRECTORY = "dir"
     LINK = "link"
 
 

@@ -15,12 +15,12 @@ __all__ = ["TokenAuth", "TokenAuthRetryAdapter"]
 
 TOKEN_URL: Final = "https://services.ceda.ac.uk/api/token/create/"
 TIMEOUT_SECONDS: Final = 5
-DEFAULT_RETRIES: Final = u3.Retry(total=1, allowed_methods=["post"])
+DEFAULT_TOKEN_RETRIES: Final = u3.Retry(total=1, allowed_methods=["post"])
 DEFAULT_POOLSIZE: Final = 10
 
 
 def _create_session(
-    max_retries: int | u3.Retry = DEFAULT_RETRIES,
+    max_retries: int | u3.Retry = DEFAULT_TOKEN_RETRIES,
     pool_maxsize: int = DEFAULT_POOLSIZE,
 ) -> rq.Session:
     session = rq.Session()
@@ -35,7 +35,7 @@ def _create_session(
     return session
 
 
-_session = _create_session()
+_auth_session = _create_session()
 
 
 class TokenAuth(rqa.AuthBase):
@@ -103,7 +103,7 @@ class TokenAuth(rqa.AuthBase):
                 cls._cache.pop(username, None)
 
     def _fetch(self, username: str, password: str) -> AccessToken:
-        with _session.post(
+        with _auth_session.post(
             self._url, auth=(username, password), timeout=self._timeout
         ) as r:
             r.raise_for_status()

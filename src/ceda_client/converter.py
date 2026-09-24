@@ -50,7 +50,7 @@ def unstructure_token_factory(typ: type, converter: cat.Converter):
     )
 
 
-def structure_location(value: Any, _) -> Any:
+def structure_location(value: Any, typ) -> Any:
     # CEDA sometimes sends location as a bare string rather than a list
     if isinstance(value, str):
         return [value]
@@ -80,7 +80,7 @@ configure_tagged_union(
     tag_name="type",
     tag_generator={  # type: ignore[reportArgumentType]
         File: ItemType.FILE.value,
-        Directory: ItemType.DIR.value,
+        Directory: ItemType.DIRECTORY.value,
         Link: ItemType.LINK.value,
     }.get,
 )

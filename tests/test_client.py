@@ -81,7 +81,7 @@ def test_download_success(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^alpha")[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.SUCCESS
-    assert result.path.read_bytes() == b"alpha-bytes"
+    assert result.target.read_bytes() == b"alpha-bytes"
     assert not (tmp_path / "alpha.nc.part").exists()
 
 
@@ -215,7 +215,7 @@ def test_download_empty_md5_skips_verification(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.SUCCESS
-    assert result.path.read_bytes() == b"no-md5-bytes"
+    assert result.target.read_bytes() == b"no-md5-bytes"
 
 
 def test_download_mirror_dirs(client, tmp_path):

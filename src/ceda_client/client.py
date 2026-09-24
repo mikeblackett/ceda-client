@@ -6,7 +6,7 @@ from collections import Counter
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum, auto
 from typing import (
     Any,
     Final,
@@ -25,31 +25,31 @@ from ceda_client.converter import converter
 from ceda_client.schema import File, Listing
 from ceda_client.token import AccessToken
 
-__all__ = ["Client", "Result", "ResultBatch"]
+__all__ = ["Client", "DownloadResult", "ResultBatch"]
 
 
-class SkipPolicy(StrEnum):
+class SkipPolicy(Enum):
     """How to treat a target that may already exist."""
 
-    CHECKSUM = "skip_checksum"
+    CHECKSUM = auto()
     """Skip if exists and md5 matches"""
-    EXISTS = "skip_exists"
+    EXISTS = auto()
     """Skip if exists"""
-    OVERWRITE = "overwrite"
+    OVERWRITE = auto()
     """Always (re)write"""
-    SIZE = "size"
+    SIZE = auto()
     """Skip if exists and size matches"""
 
 
-class Status(StrEnum):
-    SUCCESS = "success"
-    SKIPPED = "skipped"
-    FAILED = "failed"
+class Status(Enum):
+    SUCCESS = auto()
+    SKIPPED = auto()
+    FAILED = auto()
 
 
 CEDA_ENDPOINT_URL: Final = "https://data.ceda.ac.uk/"
 DEFAULT_WORKERS: Final = 8
-DEFAULT_RETRIES: Final = 1
+DEFAULT_REQUEST_RETRIES: Final = 1
 DEFAULT_POOLSIZE: Final = 10
 DEFAULT_SKIP_POLICY: Final = SkipPolicy.CHECKSUM
 DEFAULT_CONNECT_TIMEOUT_SECONDS: Final = 3.05
@@ -57,42 +57,44 @@ DEFAULT_READ_TIMEOUT_SECONDS: Final = 180
 
 
 @dataclass(frozen=True)
-class Result:
+class DownloadResult:
     file: File
-    path: up.UPath
+    target: up.UPath
     status: Status
     error: Exception | None = None
 
     @classmethod
-    def succeed(cls, file: File, path: up.UPath) -> Self:
-        return cls(file, path, Status.SUCCESS)
+    def succeed(cls, file: File, target: up.UPath) -> Self:
+        return cls(file, target, Status.SUCCESS)
 
     @classmethod
-    def skip(cls, file: File, path: up.UPath) -> Self:
-        return cls(file, path, Status.SKIPPED)
+    def skip(cls, file: File, target: up.UPath) -> Self:
+        return cls(file, target, Status.SKIPPED)
 
     @classmethod
-    def fail(cls, file: File, path: up.UPath, error: Exception) -> Self:
-        return cls(file, path, Status.FAILED, error)
+    def fail(cls, file: File, target: up.UPath, error: Exception) -> Self:
+        return cls(file, target, Status.FAILED, error)
 
 
 @dataclass(frozen=True)
 class ResultBatch:
-    results: tuple[Result, ...]
+    results: tuple[DownloadResult, ...]
     counter: Counter = field(init=False)
-    success: list[Result] = field(init=False)
-    failed: list[Result] = field(init=False)
-    skipped: list[Result] = field(init=False)
+    success: list[DownloadResult] = field(init=False)
+    failed: list[DownloadResult] = field(init=False)
+    skipped: list[DownloadResult] = field(init=False)
 
     def __post_init__(self) -> None:
-        counter = Counter(r.status for r in self.results)
-        object.__setattr__(self, "counter", counter)
-        for status in Status:
-            object.__setattr__(
-                self,
-                status.value,
-                [r for r in self.results if r.status is status],
-            )
+        object.__setattr__(self, "counter", Counter(r.status for r in self.results))
+        object.__setattr__(
+            self, "success", [r for r in self.results if r.status is Status.SUCCESS]
+        )
+        object.__setattr__(
+            self, "skipped", [r for r in self.results if r.status is Status.SKIPPED]
+        )
+        object.__setattr__(
+            self, "failed", [r for r in self.results if r.status is Status.FAILED]
+        )
 
 
 class Client:
@@ -109,7 +111,7 @@ class Client:
         username: str,
         password: str | None = None,
         *,
-        max_retries: int | u3.Retry = DEFAULT_RETRIES,
+        max_retries: int | u3.Retry = DEFAULT_REQUEST_RETRIES,
         max_workers: int = DEFAULT_WORKERS,
         pool_maxsize: int = DEFAULT_POOLSIZE,
         connect_timeout: float | None = DEFAULT_CONNECT_TIMEOUT_SECONDS,
@@ -203,7 +205,7 @@ class Client:
         mirror_dirs: bool = False,
         skip_policy: SkipPolicy = DEFAULT_SKIP_POLICY,
         chunk_size: int | None = None,
-    ) -> Result:
+    ) -> DownloadResult:
         if not file.on_disk:
             raise ValueError(
                 f"only files stored on disk are available for download, got {file.location!r}"
@@ -252,10 +254,10 @@ class Client:
         chunk_size: int | None,
         skip_policy: SkipPolicy,
         timeout: tuple[float | None, float | None],
-    ) -> Result:
+    ) -> DownloadResult:
         out.parent.mkdir(parents=True, exist_ok=True)
-        if _file_exists(file, out, skip_policy):
-            return Result.skip(file, out)
+        if _should_skip(file, out, skip_policy):
+            return DownloadResult.skip(file, out)
         digest = hashlib.md5(usedforsecurity=False)
         tmp = out.with_name(f"{out.name}.{uuid4().hex}.part")
         try:
@@ -275,8 +277,8 @@ class Client:
                 tmp.replace(out)
         except Exception as error:  # noqa: BLE001
             tmp.unlink(missing_ok=True)
-            return Result.fail(file, out, error)
-        return Result.succeed(file, out)
+            return DownloadResult.fail(file, out, error)
+        return DownloadResult.succeed(file, out)
 
     def _stream_batch(
         self,
@@ -302,7 +304,7 @@ class Client:
                     created.append(session)
             return session
 
-        def task(file: File) -> Result:
+        def task(file: File) -> DownloadResult:
             # wrap submission to push session resolution onto the worker, not the main thread.
             return self._stream(
                 file=file,
@@ -313,7 +315,7 @@ class Client:
                 timeout=timeout,
             )
 
-        raw_results: list[Result] = []
+        raw_results: list[DownloadResult] = []
         try:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 try:
@@ -361,7 +363,7 @@ def _check_unique_basenames(files: Sequence[File]) -> None:
         )
 
 
-def _file_exists(
+def _should_skip(
     file: File, path: up.UPath, policy: SkipPolicy = DEFAULT_SKIP_POLICY
 ) -> bool:
     match policy:
