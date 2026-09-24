@@ -1,14 +1,36 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
+from pytest_mock import MockerFixture
 
+from ceda_client.auth import AccessToken, TokenAuth
 from ceda_client.client import SkipPolicy, Status
+from ceda_client.converter import converter
+from ceda_client.schema import File
 
-from .conftest import DATA_DIR
+from .conftest import DATA_DIR, FAKE_TOKEN, PASS, USER
 
 
 def test_resolve_url(client):
     base = client.url.rstrip("/")
     assert client.resolve_url("data/files") == f"{base}/data/files"
     assert client.resolve_url("/data/files") == f"{base}/data/files"
+
+
+def _file(name: str, path: str) -> File:
+    return converter.structure(
+        {
+            "path": path,
+            "name": name,
+            "type": "file",
+            "location": ["on_disk"],
+            "md5": "a" * 32,
+            "size": 1,
+            "download": f"https://example.com/{path}",
+            "last_modified": None,
+        },
+        File,
+    )
 
 
 def test_get_listing(client):
@@ -21,8 +43,9 @@ def test_get_listing(client):
         "corrupt.nc",
         "sub",
         "missing.nc",
+        "nomd5.dat",
     }
-    assert len(listing.files) == 5
+    assert len(listing.files) == 7
     assert len(listing.directories) == 1
 
 
@@ -43,7 +66,7 @@ def test_get_files_pattern_filter(client):
 
 def test_get_files_combined_filters(client):
     files = client.get_files(DATA_DIR, extension=".nc", pattern="^a")
-    assert [f.name for f in files] == ["alpha.nc"]
+    assert {f.name for f in files} == {"alpha.nc"}
 
 
 def test_download_success(client, tmp_path):
@@ -139,39 +162,92 @@ def test_download_target_is_file_raises(client, tmp_path):
 
 
 def test_download_multi_all_success(client, tmp_path):
-    files = client.get_files(DATA_DIR, pattern=r"^(alpha|beta|gamma)")
+    files = client.get_files(DATA_DIR, pattern=r"^(beta|gamma)")
     batch = client.download_multi(files, tmp_path)
-    assert dict(batch.counter) == {Status.SUCCESS: 3}
-    assert len(batch.success) == 3
+    assert dict(batch.counter) == {Status.SUCCESS: 2}
+    assert len(batch.success) == 2
     assert batch.failed == []
     assert batch.skipped == []
-    assert (tmp_path / "alpha.nc").read_bytes() == b"alpha-bytes"
     assert (tmp_path / "beta.nc").read_bytes() == b"beta-bytes"
     assert (tmp_path / "gamma.txt").read_bytes() == b"gamma"
 
 
 def test_download_multi_mixed_results(client, tmp_path):
-    files = client.get_files(DATA_DIR, pattern=r"^(alpha|corrupt|missing)")
+    files = client.get_files(DATA_DIR, pattern=r"^(beta|corrupt|missing)")
     batch = client.download_multi(files, tmp_path)
     assert batch.counter[Status.SUCCESS] == 1
     assert batch.counter[Status.FAILED] == 2
     assert {r.file.name for r in batch.failed} == {"corrupt.nc", "missing.nc"}
-    assert (tmp_path / "alpha.nc").read_bytes() == b"alpha-bytes"
+    assert (tmp_path / "beta.nc").read_bytes() == b"beta-bytes"
 
 
 def test_download_multi_skips_existing(client, tmp_path):
-    (tmp_path / "alpha.nc").write_bytes(b"alpha-bytes")
-    files = client.get_files(DATA_DIR, pattern=r"^(alpha|beta)")
+    (tmp_path / "beta.nc").write_bytes(b"beta-bytes")
+    files = client.get_files(DATA_DIR, pattern=r"^(beta|gamma)")
     batch = client.download_multi(files, tmp_path)
     assert batch.counter[Status.SUCCESS] == 1
     assert batch.counter[Status.SKIPPED] == 1
-    assert batch.skipped[0].file.name == "alpha.nc"
+    assert batch.skipped[0].file.name == "beta.nc"
 
 
 def test_download_multi_empty(client, tmp_path):
     batch = client.download_multi([], tmp_path)
     assert batch.results == ()
     assert batch.counter == {}
+
+
+def test_download_empty_md5_skips_verification(client, tmp_path):
+    file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
+    result = client.download(file, tmp_path)
+    assert result.status is Status.SUCCESS
+    assert result.path.read_bytes() == b"no-md5-bytes"
+
+
+def test_download_mirror_dirs(client, tmp_path):
+    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    assert str(file.path) == f"/{DATA_DIR}/alpha.nc"
+    result = client.download(file, tmp_path, mirror_dirs=True)
+    assert result.status is Status.SUCCESS
+    expected = tmp_path / DATA_DIR / "alpha.nc"
+    assert expected.read_bytes() == b"alpha-bytes"
+
+
+def test_download_multi_duplicate_basenames_raise(client, tmp_path):
+    for files in (
+        [_file("x.nc", "/a/x.nc"), _file("x.nc", "/b/x.nc")],
+        [_file("x.nc", "/a/x.nc"), _file("X.NC", "/b/X.NC")],
+    ):
+        with pytest.raises(ValueError, match="duplicate file names"):
+            client.download_multi(files, tmp_path)
+        assert list(tmp_path.iterdir()) == []
+
+
+def test_download_multi_mirror_dirs(client, tmp_path):
+    files = client.get_files(DATA_DIR, pattern="^alpha")
+    assert {str(f.path) for f in files} == {
+        f"/{DATA_DIR}/alpha.nc",
+        "/other-tree/alpha.nc",
+    }
+    batch = client.download_multi(files, tmp_path, mirror_dirs=True)
+    assert dict(batch.counter) == {Status.SUCCESS: 2}
+    assert (tmp_path / DATA_DIR / "alpha.nc").read_bytes() == b"alpha-bytes"
+    assert (tmp_path / "other-tree" / "alpha.nc").read_bytes() == b"alpha-bytes"
+
+
+def test_client_reauths_on_401(client, ceda_server, mocker: MockerFixture):
+    new_token = "reauth-token-xyz"
+    ceda_server.valid_tokens.discard(FAKE_TOKEN)
+    ceda_server.valid_tokens.add(new_token)
+    mock = mocker.patch(
+        "ceda_client.auth.TokenAuth._fetch",
+        return_value=AccessToken(new_token, datetime.now(UTC) + timedelta(hours=1)),
+    )
+
+    listing = client.get_listing(DATA_DIR)
+
+    assert len(listing.items) > 0
+    mock.assert_called_once_with(USER, PASS)
+    assert TokenAuth._cache[USER].value == new_token
 
 
 def test_client_context_manager_closes_session(client):

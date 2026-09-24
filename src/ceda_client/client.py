@@ -11,8 +11,10 @@ from typing import (
     Any,
     Final,
     Self,
+    cast,
 )
 from urllib.parse import urljoin
+from uuid import uuid4
 
 import requests as rq
 import upath as up
@@ -196,6 +198,8 @@ class Client:
         self,
         file: File,
         target: up.UPath,
+        *,
+        mirror_dirs: bool = False,
         skip_policy: SkipPolicy = DEFAULT_SKIP_POLICY,
         chunk_size: int | None = None,
     ) -> Result:
@@ -206,7 +210,7 @@ class Client:
         path = _ensure_target(target)
         return self._stream(
             file=file,
-            path=path,
+            out=_target_for(file, path, mirror_dirs),
             session=self.session,
             skip_policy=skip_policy,
             chunk_size=chunk_size,
@@ -217,16 +221,21 @@ class Client:
         self,
         files: Sequence[File],
         target: up.UPath,
+        *,
+        mirror_dirs: bool = False,
         session_factory: Callable[[], rq.Session] | None = None,
         skip_policy: SkipPolicy = DEFAULT_SKIP_POLICY,
         max_workers: int | None = None,
         chunk_size: int | None = None,
     ) -> ResultBatch:
+        if not mirror_dirs:
+            _check_unique_basenames(files)
         path = _ensure_target(target)
         max_workers = max_workers or self.max_workers
         return self._stream_batch(
             files,
             path,
+            mirror_dirs=mirror_dirs,
             session_factory=session_factory or self._create_session,
             skip_policy=skip_policy,
             chunk_size=chunk_size,
@@ -237,17 +246,17 @@ class Client:
     def _stream(
         self,
         file: File,
-        path: up.UPath,
+        out: up.UPath,
         session: rq.Session,
         chunk_size: int | None,
         skip_policy: SkipPolicy,
         timeout: tuple[float | None, float | None],
     ) -> Result:
-        out = path.joinpath(file.name)
+        out.parent.mkdir(parents=True, exist_ok=True)
         if _file_exists(file, out, skip_policy):
             return Result.skip(file, out)
         digest = hashlib.md5(usedforsecurity=False)
-        tmp = out.with_name(out.name + ".part")
+        tmp = out.with_name(f"{out.name}.{uuid4().hex}.part")
         try:
             with session.get(
                 file.download_url, stream=True, timeout=timeout
@@ -257,7 +266,7 @@ class Client:
                     for chunk in response.iter_content(chunk_size=chunk_size):
                         f.write(chunk)
                         digest.update(chunk)
-                if digest.hexdigest() != file.md5:
+                if file.md5 and digest.hexdigest() != file.md5.casefold():
                     raise ValueError(
                         f"checksum failed for {file.name}: "
                         f"expected {file.md5}, got {digest.hexdigest()}"
@@ -274,6 +283,7 @@ class Client:
         self,
         files: Sequence[File],
         path: up.UPath,
+        mirror_dirs: bool,
         session_factory: Callable[[], rq.Session],
         skip_policy: SkipPolicy,
         chunk_size: int | None,
@@ -297,7 +307,7 @@ class Client:
             # wrap submission to push session resolution onto the worker, not the main thread.
             return self._stream(
                 file=file,
-                path=path,
+                out=_target_for(file, path, mirror_dirs),
                 session=session_for_thread(),
                 skip_policy=skip_policy,
                 chunk_size=chunk_size,
@@ -328,6 +338,29 @@ def _ensure_target(path: up.UPath) -> up.UPath:
     return path
 
 
+def _target_for(file: File, path: up.UPath, mirror_dirs: bool) -> up.UPath:
+    if mirror_dirs:
+        return path.joinpath(file.path.as_posix().lstrip("/"))
+    return path.joinpath(file.name)
+
+
+def _check_unique_basenames(files: Sequence[File]) -> None:
+    seen: dict[str, list[str]] = {}
+    for file in files:
+        seen.setdefault(file.name.lower(), []).append(file.path.as_posix())
+    dupes = {name: paths for name, paths in seen.items() if len(paths) > 1}
+    if dupes:
+        details = "; ".join(
+            f"{name!r}: {', '.join(sorted(paths))}"
+            for name, paths in sorted(dupes.items())
+        )
+        raise ValueError(
+            "duplicate file names would overwrite each other in a flat target: "
+            f"{details}. Pass mirror_dirs=True to preserve the remote directory "
+            "structure, or download into separate target directories."
+        )
+
+
 def _file_exists(
     file: File, path: up.UPath, policy: SkipPolicy = DEFAULT_SKIP_POLICY
 ) -> bool:
@@ -353,6 +386,7 @@ def _verify_checksum(path: up.UPath, md5: str) -> bool:
     if not path.exists():
         return False
     with path.open("rb") as file:
-        assert isinstance(file, io.RawIOBase | io.BufferedIOBase)
-        digest = hashlib.file_digest(file, "md5")
+        digest = hashlib.file_digest(
+            cast("io.RawIOBase | io.BufferedIOBase", file), "md5"
+        )
     return digest.hexdigest() == md5
