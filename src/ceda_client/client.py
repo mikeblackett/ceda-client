@@ -61,7 +61,7 @@ class Result:
     file: File
     path: up.UPath
     status: Status
-    error: BaseException | None = None
+    error: Exception | None = None
 
     @classmethod
     def succeed(cls, file: File, path: up.UPath) -> Self:
@@ -72,7 +72,7 @@ class Result:
         return cls(file, path, Status.SKIPPED)
 
     @classmethod
-    def fail(cls, file: File, path: up.UPath, error: BaseException) -> Self:
+    def fail(cls, file: File, path: up.UPath, error: Exception) -> Self:
         return cls(file, path, Status.FAILED, error)
 
 
@@ -272,9 +272,7 @@ class Client:
                         f"expected {file.md5}, got {digest.hexdigest()}"
                     )
                 tmp.replace(out)
-        except (KeyboardInterrupt, SystemExit) as error:
-            raise error  # noqa: TRY201
-        except BaseException as error:  # noqa: BLE001
+        except Exception as error:  # noqa: BLE001
             tmp.unlink(missing_ok=True)
             return Result.fail(file, out, error)
         return Result.succeed(file, out)
