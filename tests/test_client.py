@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import requests as rq
 from pytest_mock import MockerFixture
 
 from ceda_client.auth import AccessToken, TokenAuth
@@ -17,13 +18,13 @@ def test_resolve_url(client):
     assert client.resolve_url("/data/files") == f"{base}/data/files"
 
 
-def _file(name: str, path: str) -> File:
+def _file(name: str, path: str, location: list[str] | None = None) -> File:
     return converter.structure(
         {
             "path": path,
             "name": name,
             "type": "file",
-            "location": ["on_disk"],
+            "location": location or ["on_disk"],
             "md5": "a" * 32,
             "size": 1,
             "download": f"https://example.com/{path}",
@@ -69,6 +70,13 @@ def test_get_files_combined_filters(client):
     assert {f.name for f in files} == {"alpha.nc"}
 
 
+def test_get_json_listing_error_propagates(client):
+    with pytest.raises(rq.HTTPError) as excinfo:
+        client.get_json_listing("does-not-exist")
+    assert excinfo.value.response is not None
+    assert excinfo.value.response.status_code == 404
+
+
 def test_download_success(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^alpha")[0]
     result = client.download(file, tmp_path)
@@ -98,7 +106,7 @@ def test_download_http_error_fails(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^missing")[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.FAILED
-    assert isinstance(result.error, Exception)
+    assert isinstance(result.error, rq.HTTPError)
     assert not (tmp_path / "missing.nc").exists()
 
 
@@ -159,6 +167,13 @@ def test_download_target_is_file_raises(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^alpha")[0]
     with pytest.raises(NotADirectoryError):
         client.download(file, target)
+
+
+def test_download_tape_only_raises(client, tmp_path):
+    file = _file("tape.nc", "/x/tape.nc", location=["on_tape"])
+    with pytest.raises(ValueError, match="on disk"):
+        client.download(file, tmp_path)
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_download_multi_all_success(client, tmp_path):
@@ -254,3 +269,11 @@ def test_client_context_manager_closes_session(client):
     with client:
         assert client.session is not None
     assert client._session is None
+
+
+def test_close_is_idempotent_and_session_recreated(client):
+    client.close()
+    client.close()
+    session = client.session
+    assert session is not None
+    client.close()

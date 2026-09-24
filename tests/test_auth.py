@@ -1,3 +1,4 @@
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest as pt
@@ -92,6 +93,34 @@ def test_call_sets_authorization_header(fresh_cache, mocker: MockerFixture):
 
     assert request.headers["Authorization"] == f"Bearer {FAKE_TOKEN}"
     mock.assert_not_called()
+
+
+def test_token_fetch_under_concurrency(mocker: MockerFixture):
+    TokenAuth.clear()
+    fetched = AccessToken("concurrent-token", datetime.now(UTC) + timedelta(hours=1))
+    mock = mocker.patch(
+        "ceda_client.auth.TokenAuth._fetch",
+        return_value=fetched,
+    )
+    barrier = threading.Barrier(8)
+    results: list[AccessToken] = []
+
+    def worker() -> None:
+        barrier.wait()
+        results.append(TokenAuth(USER, PASS).token)
+
+    try:
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=5)
+
+        assert len(results) == 8
+        assert all(token is fetched for token in results)
+        mock.assert_called_once()
+    finally:
+        TokenAuth.clear()
 
 
 def test_clear(fresh_cache):
