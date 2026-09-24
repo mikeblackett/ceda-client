@@ -2,7 +2,7 @@ from abc import ABC
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import ClassVar, TypeIs
+from typing import ClassVar
 
 import attrs as at
 
@@ -81,7 +81,3 @@ class Listing(_Base):
     @property
     def links(self) -> tuple[Link, ...]:
         return tuple(i for i in self.items if isinstance(i, Link))
-
-
-def is_item(value: Item | None) -> TypeIs[Item]:
-    return isinstance(value, Item)
