@@ -1,3 +1,5 @@
+"""Token acquisition, caching, and re-authentication for CEDA requests."""
+
 from http import HTTPStatus
 from threading import Lock
 from typing import ClassVar, Final
@@ -23,7 +25,10 @@ def _create_session(
     max_retries: int | u3.Retry = DEFAULT_TOKEN_RETRIES,
     pool_maxsize: int = DEFAULT_POOLSIZE,
 ) -> rq.Session:
+    """Build the dedicated session used to fetch tokens."""
     session = rq.Session()
+    # Ignore proxy settings from the environment: token requests go
+    # straight to CEDA's service endpoint.
     session.trust_env = False
     adapter = rqh.HTTPAdapter(
         max_retries=max_retries,
@@ -39,6 +44,14 @@ _auth_session = _create_session()
 
 
 class TokenAuth(rqa.AuthBase):
+    """Requests auth that attaches a cached CEDA access token.
+
+    Tokens are cached at class level, keyed by username, and shared across
+    ``TokenAuth`` instances with the same username. The password is only
+    required when no fresh token is cached. Fetching is thread-safe:
+    concurrent callers for the same username fetch at most once.
+    """
+
     _cache: ClassVar[dict[str, AccessToken]] = {}
     _locks: ClassVar[dict[str, Lock]] = {}
     _converter: ClassVar[cat.Converter] = converter
@@ -64,11 +77,21 @@ class TokenAuth(rqa.AuthBase):
         self._timeout = timeout
 
     def __call__(self, request: rq.PreparedRequest) -> rq.PreparedRequest:
+        """Attach the current token's ``Authorization`` header to ``request``."""
         request.headers["Authorization"] = self.token.auth_header
         return request
 
     @property
     def token(self) -> AccessToken:
+        """A fresh access token for this username, fetching one if needed.
+
+        Returns the cached token when it is still fresh, otherwise fetches
+        (and caches) a new one.
+
+        Raises:
+            RuntimeError: If no fresh token is cached and no password was
+                provided at construction.
+        """
         username = self._username
         password = self._password
         cached = self._cache.get(username)
@@ -90,10 +113,16 @@ class TokenAuth(rqa.AuthBase):
             return token
 
     def invalidate(self) -> None:
+        """Discard this username's cached token; the next request re-authenticates."""
         self.clear(self._username)
 
     @classmethod
     def clear(cls, username: str | None = None) -> None:
+        """Discard cached tokens, for ``username`` or all when ``username`` is None.
+
+        Bumps a generation counter first so tokens fetched in flight are
+        not re-cached after the clear.
+        """
         with cls._generation_lock:
             cls._generation += 1
         if username is None:
@@ -103,6 +132,7 @@ class TokenAuth(rqa.AuthBase):
                 cls._cache.pop(username, None)
 
     def _fetch(self, username: str, password: str) -> AccessToken:
+        """Exchange credentials for a fresh token at the token endpoint."""
         with _auth_session.post(
             self._url, auth=(username, password), timeout=self._timeout
         ) as r:
@@ -111,11 +141,19 @@ class TokenAuth(rqa.AuthBase):
 
 
 class TokenAuthRetryAdapter(rqh.HTTPAdapter):
+    """HTTP adapter that transparently re-authenticates on a 401 response.
+
+    If the server rejects a request as unauthorized, the cached token is
+    invalidated, the request is re-signed with a fresh token, and the
+    request is sent once more.
+    """
+
     def __init__(self, auth: TokenAuth, *args, **kwargs) -> None:
         self._auth = auth
         super().__init__(*args, **kwargs)
 
     def send(self, request: rq.PreparedRequest, *args, **kwargs) -> rq.Response:
+        """Send ``request``, retrying once with a fresh token if it 401s."""
         response = super().send(request, *args, **kwargs)
         if response.status_code == HTTPStatus.UNAUTHORIZED:
             response.close()

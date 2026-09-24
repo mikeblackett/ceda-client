@@ -1,3 +1,5 @@
+"""High-level CEDA client: listings, filtering, and file downloads."""
+
 import hashlib
 import io
 import re
@@ -42,6 +44,8 @@ class SkipPolicy(Enum):
 
 
 class Status(Enum):
+    """Outcome of a single download attempt."""
+
     SUCCESS = auto()
     SKIPPED = auto()
     FAILED = auto()
@@ -58,6 +62,8 @@ DEFAULT_READ_TIMEOUT_SECONDS: Final = 180
 
 @dataclass(frozen=True)
 class DownloadResult:
+    """Outcome of downloading a single file."""
+
     file: File
     target: up.UPath
     status: Status
@@ -65,19 +71,24 @@ class DownloadResult:
 
     @classmethod
     def succeed(cls, file: File, target: up.UPath) -> Self:
+        """A result for a successful download."""
         return cls(file, target, Status.SUCCESS)
 
     @classmethod
     def skip(cls, file: File, target: up.UPath) -> Self:
+        """A result for a file skipped by the skip policy."""
         return cls(file, target, Status.SKIPPED)
 
     @classmethod
     def fail(cls, file: File, target: up.UPath, error: Exception) -> Self:
+        """A result for a failed download; ``error`` is the cause."""
         return cls(file, target, Status.FAILED, error)
 
 
 @dataclass(frozen=True)
 class ResultBatch:
+    """An immutable batch of download results with precomputed status buckets."""
+
     results: tuple[DownloadResult, ...]
     counter: Counter = field(init=False)
     success: list[DownloadResult] = field(init=False)
@@ -98,6 +109,13 @@ class ResultBatch:
 
 
 class Client:
+    """Client for CEDA's JSON directory listings and file downloads.
+
+    Handles token acquisition/caching, HTTP session management, directory
+    listings, and single or parallel file downloads with checksum
+    verification. Usable as a context manager, which closes the session.
+    """
+
     username: str
     url: str
     max_retries: int | u3.Retry
@@ -118,6 +136,20 @@ class Client:
         read_timeout: float | None = DEFAULT_READ_TIMEOUT_SECONDS,
         url: str = CEDA_ENDPOINT_URL,
     ) -> None:
+        """Create a client for the CEDA data endpoint.
+
+        Args:
+            username: CEDA username.
+            password: CEDA password; only needed to fetch the first token,
+                since tokens are cached at class level by username.
+            max_retries: Retries for data requests: a count, or an
+                ``urllib3.Retry`` for finer control.
+            max_workers: Thread pool size for ``download_multi``.
+            pool_maxsize: HTTP connection pool size per session.
+            connect_timeout: Seconds to wait when connecting, or None.
+            read_timeout: Seconds to wait between read bytes, or None.
+            url: Base URL of the data endpoint.
+        """
         self._auth = TokenAuth(username, password)
 
         self.username = username
@@ -132,10 +164,12 @@ class Client:
 
     @property
     def token(self) -> AccessToken:
+        """The current (cached or freshly fetched) access token."""
         return self._auth.token
 
     @property
     def session(self) -> rq.Session:
+        """The HTTP session, recreated lazily after ``close``."""
         if self._session is None:
             self._session = self._create_session()
         return self._session
@@ -147,11 +181,13 @@ class Client:
         self.close()
 
     def close(self) -> None:
+        """Close the HTTP session; a new one is created on next use."""
         if self._session is not None:
             self._session.close()
             self._session = None
 
     def _create_session(self) -> rq.Session:
+        """Build an HTTP session with token auth and 401 re-auth retry."""
         session = rq.Session()
         session.auth = self._auth
         session.trust_env = False
@@ -165,9 +201,15 @@ class Client:
         return session
 
     def resolve_url(self, path: str) -> str:
+        """Resolve ``path`` against the base URL, tolerating a leading slash."""
         return urljoin(self.url, path.lstrip("/"))
 
     def get_json_listing(self, path: str) -> dict[str, Any]:
+        """Fetch the raw JSON listing for a remote directory.
+
+        Raises:
+            rq.HTTPError: If the request fails (e.g. 404 for a bad path).
+        """
         url = self.resolve_url(path)
         with self.session.get(
             url,
@@ -179,6 +221,7 @@ class Client:
         return data
 
     def get_listing(self, path: str) -> Listing:
+        """Fetch and parse the listing for a remote directory."""
         return converter.structure(self.get_json_listing(path), Listing)
 
     def get_files(
@@ -187,6 +230,13 @@ class Client:
         extension: str | None = None,
         pattern: str | re.Pattern | None = None,
     ) -> list[File]:
+        """List the files in a remote directory, filtered by name.
+
+        Args:
+            path: Remote directory to list.
+            extension: If given, only files with this extension (e.g. ``".nc"``).
+            pattern: If given, only files whose name matches this regex.
+        """
         result = []
         listing = self.get_listing(path)
         for file in listing.files:
@@ -206,6 +256,24 @@ class Client:
         skip_policy: SkipPolicy = DEFAULT_SKIP_POLICY,
         chunk_size: int | None = None,
     ) -> DownloadResult:
+        """Download a single file into the ``target`` directory.
+
+        The file is streamed to a temporary ``.part`` sibling whose md5 is
+        checked against the listing's, then atomically renamed into place.
+
+        Args:
+            file: The file to download.
+            target: Directory to download into (created if missing).
+            mirror_dirs: If True, preserve the remote directory structure
+                under ``target``; otherwise the file goes directly in
+                ``target``.
+            skip_policy: How to treat a target that may already exist.
+            chunk_size: Read size for the streamed response, or None.
+
+        Raises:
+            ValueError: If the file is not stored on disk (e.g. tape only).
+            NotADirectoryError: If ``target`` exists and is not a directory.
+        """
         if not file.on_disk:
             raise ValueError(
                 f"only files stored on disk are available for download, got {file.location!r}"
@@ -231,6 +299,27 @@ class Client:
         max_workers: int | None = None,
         chunk_size: int | None = None,
     ) -> ResultBatch:
+        """Download multiple files in parallel into the ``target`` directory.
+
+        Each worker thread uses its own HTTP session. Failures and skips
+        are reported in the returned :class:`ResultBatch`, not raised.
+
+        Args:
+            files: Files to download.
+            target: Directory to download into (created if missing).
+            mirror_dirs: Preserve the remote directory structure under
+                ``target``; also disables the duplicate-basename check.
+            session_factory: Override how worker sessions are created
+                (mainly for tests).
+            skip_policy: How to treat a target that may already exist.
+            max_workers: Thread pool size, defaulting to the client's.
+            chunk_size: Read size for the streamed responses, or None.
+
+        Raises:
+            ValueError: If two files share a basename and ``mirror_dirs``
+                is False, since they would overwrite each other.
+            NotADirectoryError: If ``target`` exists and is not a directory.
+        """
         if not mirror_dirs:
             _check_unique_basenames(files)
         path = _ensure_target(target)
@@ -255,6 +344,11 @@ class Client:
         skip_policy: SkipPolicy,
         timeout: tuple[float | None, float | None],
     ) -> DownloadResult:
+        """Stream ``file`` to ``out``, verifying its md5 checksum.
+
+        Never raises for download problems: failures are reported as a
+        FAILED result, and the temp file is removed on any failure.
+        """
         out.parent.mkdir(parents=True, exist_ok=True)
         if _should_skip(file, out, skip_policy):
             return DownloadResult.skip(file, out)
@@ -291,6 +385,12 @@ class Client:
         max_workers: int,
         timeout: tuple[float | None, float | None],
     ) -> ResultBatch:
+        """Download ``files`` in a thread pool, one session per worker thread.
+
+        Sessions are created lazily per thread so the number of connections
+        stays bounded by ``max_workers``; all of them are closed when the
+        pool shuts down, even on KeyboardInterrupt.
+        """
         local = threading.local()
         created: list[rq.Session] = []
         lock = threading.Lock()
@@ -334,6 +434,7 @@ class Client:
 
 
 def _ensure_target(path: up.UPath) -> up.UPath:
+    """Create ``path`` if needed; raise if it exists as a file."""
     if path.exists() and not path.is_dir():
         raise NotADirectoryError(f"path is not a directory: {path!r}.")
     path.mkdir(parents=True, exist_ok=True)
@@ -341,12 +442,14 @@ def _ensure_target(path: up.UPath) -> up.UPath:
 
 
 def _target_for(file: File, path: up.UPath, mirror_dirs: bool) -> up.UPath:
+    """The local destination for ``file`` under ``path``."""
     if mirror_dirs:
         return path.joinpath(file.path.as_posix().lstrip("/"))
     return path.joinpath(file.name)
 
 
 def _check_unique_basenames(files: Sequence[File]) -> None:
+    """Raise ValueError if any two files share a basename (case-insensitive)."""
     seen: dict[str, list[str]] = {}
     for file in files:
         seen.setdefault(file.name.lower(), []).append(file.path.as_posix())
@@ -366,6 +469,7 @@ def _check_unique_basenames(files: Sequence[File]) -> None:
 def _should_skip(
     file: File, path: up.UPath, policy: SkipPolicy = DEFAULT_SKIP_POLICY
 ) -> bool:
+    """Whether an existing ``path`` satisfies the download skip policy."""
     match policy:
         case SkipPolicy.EXISTS:
             return path.exists()
@@ -380,10 +484,12 @@ def _should_skip(
 
 
 def _verify_file_size(path: up.UPath, size: int) -> bool:
+    """Whether ``path`` exists and its size matches the remote file's."""
     return path.exists() and (path.stat().st_size == size)
 
 
 def _verify_checksum(path: up.UPath, md5: str) -> bool:
+    """Whether ``path`` exists and its md5 matches the remote file's."""
     # TODO: checksum only works for local filesystem files
     if not path.exists():
         return False
