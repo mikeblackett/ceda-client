@@ -1,4 +1,7 @@
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from typing import Self, cast
 
 import pytest
 import requests as rq
@@ -32,6 +35,36 @@ def _file(name: str, path: str, location: list[str] | None = None) -> File:
         },
         File,
     )
+
+
+class _InterruptingResponse:
+    """A streaming response interrupted mid-body."""
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def iter_content(self, chunk_size: int | None = 1) -> Iterator[bytes]:
+        yield b"partial"
+        raise KeyboardInterrupt
+
+
+class _InterruptingSession:
+    """A session whose downloads are interrupted mid-stream."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    def get(self, url: str, **kwargs: object) -> _InterruptingResponse:
+        return _InterruptingResponse()
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def test_base_url_path_is_preserved():
@@ -117,6 +150,39 @@ def test_download_http_error_fails(client, tmp_path):
     assert result.status is Status.FAILED
     assert isinstance(result.error, rq.HTTPError)
     assert not (tmp_path / "missing.nc").exists()
+
+
+def test_download_interrupt_removes_temp_file(client, tmp_path):
+    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    client._session = cast("rq.Session", _InterruptingSession())
+    with pytest.raises(KeyboardInterrupt):
+        client.download(file, tmp_path, skip_policy=SkipPolicy.OVERWRITE)
+    assert not (tmp_path / "alpha.nc").exists()
+    assert list(tmp_path.glob("*.part")) == []
+
+
+def test_download_multi_interrupt_shuts_down_executor(
+    client, tmp_path, mocker: MockerFixture
+):
+    files = client.get_files(DATA_DIR, pattern=r"^(alpha|beta)")
+    shutdown = mocker.spy(ThreadPoolExecutor, "shutdown")
+    sessions: list[_InterruptingSession] = []
+
+    def factory() -> rq.Session:
+        session = _InterruptingSession()
+        sessions.append(session)
+        return cast("rq.Session", session)
+
+    with pytest.raises(KeyboardInterrupt):
+        client.download_multi(
+            files, tmp_path, mirror_dirs=True, session_factory=factory
+        )
+
+    assert any(
+        call.kwargs.get("cancel_futures") is True for call in shutdown.call_args_list
+    )
+    assert sessions and all(session.closed for session in sessions)
+    assert list(tmp_path.glob("*.part")) == []
 
 
 def test_skip_exists(client, tmp_path):

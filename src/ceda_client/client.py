@@ -369,9 +369,12 @@ class Client:
                         f"expected {file.md5}, got {digest.hexdigest()}"
                     )
                 tmp.replace(out)
+        except (KeyboardInterrupt, SystemExit) as error:
+            raise error  # noqa: TRY201
         except Exception as error:  # noqa: BLE001
-            tmp.unlink(missing_ok=True)
             return DownloadResult.fail(file, out, error)
+        finally:
+            tmp.unlink(missing_ok=True)
         return DownloadResult.succeed(file, out)
 
     def _stream_batch(
