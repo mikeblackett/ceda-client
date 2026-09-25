@@ -1,7 +1,6 @@
 """High-level CEDA client: listings, filtering, and file downloads."""
 
 import hashlib
-import io
 import re
 import threading
 from collections import Counter
@@ -13,7 +12,6 @@ from typing import (
     Any,
     Final,
     Self,
-    cast,
 )
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -496,8 +494,8 @@ def _verify_checksum(path: up.UPath, md5: str) -> bool:
     # TODO: checksum only works for local filesystem files
     if not path.exists():
         return False
+    digest = hashlib.md5(usedforsecurity=False)
     with path.open("rb") as file:
-        digest = hashlib.file_digest(
-            cast("io.RawIOBase | io.BufferedIOBase", file), "md5"
-        )
+        for chunk in iter(lambda: file.read(1 << 20), b""):
+            digest.update(chunk)
     return digest.hexdigest() == md5
