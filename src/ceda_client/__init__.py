@@ -11,9 +11,10 @@ If your data has no int64 (and nothing else specific to this client),
 prefer a DAP2 tool like ``pydap``.
 """
 
-from ceda_client.auth import AccessToken, TokenAuth
+from ceda_client.auth import TokenAuth
 from ceda_client.client import Client, DownloadResult, ResultBatch, SkipPolicy, Status
 from ceda_client.schema import Directory, File, Item, ItemType, Link, Listing, Location
+from ceda_client.token import AccessToken
 
 __all__ = [
     "AccessToken",
