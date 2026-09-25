@@ -1,6 +1,6 @@
 [project]
 name = "ceda-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python client for the CEDA Archive JSON directory listings and file downloads."
 readme = "README.md"
 authors = [
