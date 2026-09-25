@@ -256,8 +256,8 @@ def test_download_multi_all_success(client, tmp_path):
     batch = client.download_multi(files, tmp_path)
     assert dict(batch.counter) == {Status.SUCCESS: 2}
     assert len(batch.success) == 2
-    assert batch.failed == []
-    assert batch.skipped == []
+    assert batch.failed == ()
+    assert batch.skipped == ()
     assert (tmp_path / "beta.nc").read_bytes() == b"beta-bytes"
     assert (tmp_path / "gamma.txt").read_bytes() == b"gamma"
 

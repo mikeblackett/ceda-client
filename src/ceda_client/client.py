@@ -89,20 +89,24 @@ class ResultBatch:
 
     results: tuple[DownloadResult, ...]
     counter: Counter = field(init=False)
-    success: list[DownloadResult] = field(init=False)
-    failed: list[DownloadResult] = field(init=False)
-    skipped: list[DownloadResult] = field(init=False)
+    success: tuple[DownloadResult, ...] = field(init=False)
+    failed: tuple[DownloadResult, ...] = field(init=False)
+    skipped: tuple[DownloadResult, ...] = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "counter", Counter(r.status for r in self.results))
         object.__setattr__(
-            self, "success", [r for r in self.results if r.status is Status.SUCCESS]
+            self,
+            "success",
+            tuple(r for r in self.results if r.status is Status.SUCCESS),
         )
         object.__setattr__(
-            self, "skipped", [r for r in self.results if r.status is Status.SKIPPED]
+            self,
+            "skipped",
+            tuple(r for r in self.results if r.status is Status.SKIPPED),
         )
         object.__setattr__(
-            self, "failed", [r for r in self.results if r.status is Status.FAILED]
+            self, "failed", tuple(r for r in self.results if r.status is Status.FAILED)
         )
 
 

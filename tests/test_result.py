@@ -52,4 +52,4 @@ def test_result_batch_counters_and_lists():
 def test_result_batch_empty():
     batch = ResultBatch(())
     assert batch.counter == {}
-    assert batch.success == batch.failed == batch.skipped == []
+    assert batch.success == batch.failed == batch.skipped == ()
