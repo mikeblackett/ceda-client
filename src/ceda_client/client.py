@@ -148,7 +148,7 @@ class Client:
             pool_maxsize: HTTP connection pool size per session.
             connect_timeout: Seconds to wait when connecting, or None.
             read_timeout: Seconds to wait between read bytes, or None.
-            url: Base URL of the data endpoint.
+            url: Base URL of the data endpoint; the trailing slash is normalized (added if missing).
         """
         self._auth = TokenAuth(username, password)
 
@@ -158,7 +158,7 @@ class Client:
         self.pool_maxsize = pool_maxsize
         self.connect_timeout = connect_timeout
         self.read_timeout = read_timeout
-        self.url = url
+        self.url = url.rstrip("/") + "/"
 
         self._session: rq.Session | None = self._create_session()
 

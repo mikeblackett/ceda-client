@@ -5,7 +5,7 @@ import requests as rq
 from pytest_mock import MockerFixture
 
 from ceda_client.auth import AccessToken, TokenAuth
-from ceda_client.client import SkipPolicy, Status
+from ceda_client.client import Client, SkipPolicy, Status
 from ceda_client.converter import converter
 from ceda_client.schema import File
 
@@ -32,6 +32,15 @@ def _file(name: str, path: str, location: list[str] | None = None) -> File:
         },
         File,
     )
+
+
+def test_base_url_path_is_preserved():
+    c = Client(USER, PASS, url="http://h/proxy")
+    try:
+        assert c.url == "http://h/proxy/"
+        assert c.resolve_url("data/files") == "http://h/proxy/data/files"
+    finally:
+        c.close()
 
 
 def test_get_listing(client):
