@@ -11,6 +11,8 @@ If your data has no int64 (and nothing else specific to this client),
 prefer a DAP2 tool like ``pydap``.
 """
 
+from importlib.metadata import version
+
 from ceda_client.auth import TokenAuth
 from ceda_client.client import Client, DownloadResult, ResultBatch, SkipPolicy, Status
 from ceda_client.errors import (
@@ -22,6 +24,8 @@ from ceda_client.errors import (
 )
 from ceda_client.schema import Directory, File, Item, ItemType, Link, Listing, Location
 from ceda_client.token import AccessToken
+
+__version__ = version("ceda-client")
 
 __all__ = [
     "AccessToken",
@@ -43,4 +47,5 @@ __all__ = [
     "SkipPolicy",
     "Status",
     "TokenAuth",
+    "__version__",
 ]
