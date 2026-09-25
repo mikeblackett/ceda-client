@@ -27,7 +27,7 @@ def test_datetime_unstructure(value: datetime):
 
 
 def test_datetime_invalid_raises():
-    with pytest.raises(Exception):  # noqa: B017
+    with pytest.raises(ValueError):
         converter.structure("not-a-date", datetime)
 
 

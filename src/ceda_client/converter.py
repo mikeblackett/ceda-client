@@ -62,7 +62,7 @@ def unstructure_token_factory(typ: type, converter: cat.Converter):
     )
 
 
-def structure_location(value: Any, typ) -> Any:
+def structure_location(value: Any, typ: type) -> Any:
     """Normalize ``location`` to a list; CEDA sometimes sends a bare string."""
     if isinstance(value, str):
         return [value]

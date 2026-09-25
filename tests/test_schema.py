@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from cattrs.errors import ClassValidationError
 
 from ceda_client.converter import converter
 from ceda_client.schema import (
@@ -126,7 +127,7 @@ def test_tape_only_file():
 
 
 def test_unknown_item_type_raises():
-    with pytest.raises(Exception):  # noqa: B017
+    with pytest.raises(ClassValidationError):
         converter.structure(
             {
                 "path": "/x",

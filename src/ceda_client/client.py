@@ -54,6 +54,7 @@ DEFAULT_WORKERS: Final = 8
 DEFAULT_REQUEST_RETRIES: Final = 1
 DEFAULT_POOLSIZE: Final = 10
 DEFAULT_SKIP_POLICY: Final = SkipPolicy.CHECKSUM
+# Slightly above one TCP retransmission window (3 s), per the requests docs.
 DEFAULT_CONNECT_TIMEOUT_SECONDS: Final = 3.05
 DEFAULT_READ_TIMEOUT_SECONDS: Final = 180
 
@@ -325,7 +326,8 @@ class Client:
         if not mirror_dirs:
             _check_unique_basenames(files)
         path = _ensure_target(target)
-        max_workers = max_workers or self.max_workers
+        if max_workers is None:
+            max_workers = self.max_workers
         return self._stream_batch(
             files,
             path,
@@ -471,9 +473,7 @@ def _check_unique_basenames(files: Sequence[File]) -> None:
         )
 
 
-def _should_skip(
-    file: File, path: up.UPath, policy: SkipPolicy = DEFAULT_SKIP_POLICY
-) -> bool:
+def _should_skip(file: File, path: up.UPath, policy: SkipPolicy) -> bool:
     """Whether an existing ``path`` satisfies the download skip policy."""
     match policy:
         case SkipPolicy.EXISTS:
