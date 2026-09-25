@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,12 @@ from pytest_mock import MockerFixture
 from ceda_client.auth import AccessToken, TokenAuth
 from ceda_client.client import Client, SkipPolicy, Status
 from ceda_client.converter import converter
+from ceda_client.errors import (
+    ChecksumMismatchError,
+    DuplicateFilenameError,
+    DuplicateFilenameErrorGroup,
+    NotOnDiskError,
+)
 from ceda_client.schema import File
 
 from .conftest import DATA_DIR, FAKE_TOKEN, PASS, USER
@@ -139,7 +146,14 @@ def test_download_checksum_mismatch_fails(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^corrupt")[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.FAILED
-    assert isinstance(result.error, ValueError)
+    assert isinstance(result.error, ChecksumMismatchError)
+    assert result.error.filename == "corrupt.nc"
+    assert result.error.algorithm == "md5"
+    assert result.error.expected == file.md5
+    assert (
+        result.error.actual
+        == hashlib.md5(b"corrupt-content", usedforsecurity=False).hexdigest()
+    )
     assert not (tmp_path / "corrupt.nc").exists()
     assert not (tmp_path / "corrupt.nc.part").exists()
 
@@ -246,8 +260,10 @@ def test_download_target_is_file_raises(client, tmp_path):
 
 def test_download_tape_only_raises(client, tmp_path):
     file = _file("tape.nc", "/x/tape.nc", location=["on_tape"])
-    with pytest.raises(ValueError, match="on disk"):
+    with pytest.raises(NotOnDiskError) as excinfo:
         client.download(file, tmp_path)
+    assert excinfo.value.filename == "tape.nc"
+    assert list(excinfo.value.location) == ["on_tape"]
     assert list(tmp_path.iterdir()) == []
 
 
@@ -302,14 +318,46 @@ def test_download_mirror_dirs(client, tmp_path):
     assert expected.read_bytes() == b"alpha-bytes"
 
 
-def test_download_multi_duplicate_basenames_raise(client, tmp_path):
-    for files in (
-        [_file("x.nc", "/a/x.nc"), _file("x.nc", "/b/x.nc")],
-        [_file("x.nc", "/a/x.nc"), _file("X.NC", "/b/X.NC")],
-    ):
-        with pytest.raises(ValueError, match="duplicate file names"):
+def test_download_multi_duplicate_filenames_raise(client, tmp_path):
+    cases = (
+        (
+            [_file("x.nc", "/a/x.nc"), _file("x.nc", "/b/x.nc")],
+            "x.nc",
+            ["/a/x.nc", "/b/x.nc"],
+        ),
+        (
+            [_file("x.nc", "/a/x.nc"), _file("X.NC", "/b/X.NC")],
+            "x.nc",
+            ["/a/x.nc", "/b/X.NC"],
+        ),
+    )
+    for files, name, matches in cases:
+        with pytest.raises(DuplicateFilenameErrorGroup) as excinfo:
             client.download_multi(files, tmp_path)
         assert list(tmp_path.iterdir()) == []
+        error = excinfo.value.exceptions[0]
+        assert isinstance(error, DuplicateFilenameError)
+        assert error.filename == name
+        assert list(error.matches) == matches
+
+
+def test_download_multi_multiple_duplicate_filenames_raise(client, tmp_path):
+    files = [
+        _file("x.nc", "/a/x.nc"),
+        _file("x.nc", "/b/x.nc"),
+        _file("y.nc", "/a/y.nc"),
+        _file("y.nc", "/b/y.nc"),
+    ]
+    with pytest.raises(DuplicateFilenameErrorGroup) as excinfo:
+        client.download_multi(files, tmp_path)
+    assert list(tmp_path.iterdir()) == []
+    errors = [
+        error
+        for error in excinfo.value.exceptions
+        if isinstance(error, DuplicateFilenameError)
+    ]
+    assert len(errors) == 2
+    assert sorted(error.filename for error in errors) == ["x.nc", "y.nc"]
 
 
 def test_download_multi_mirror_dirs(client, tmp_path):

@@ -153,7 +153,7 @@ def ceda_server():
             "last_modified": "2025-01-01T00:00:00",
         }
     )
-    # same basename as a file above, but from a different remote directory
+    # same filename as a file above, but from a different remote directory
     items.append(
         {
             "path": "/other-tree/alpha.nc",

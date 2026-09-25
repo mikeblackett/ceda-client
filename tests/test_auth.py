@@ -6,6 +6,7 @@ import requests as rq
 from pytest_mock import MockerFixture
 
 from ceda_client.auth import TokenAuth
+from ceda_client.errors import MissingPasswordError
 from ceda_client.token import AccessToken
 
 from .conftest import FAKE_TOKEN, PASS, USER
@@ -60,8 +61,9 @@ def test_fetches_token_when_cache_empty(mocker: MockerFixture):
 
 
 def test_token_requires_password_when_no_cache():
-    with pt.raises(RuntimeError):
+    with pt.raises(MissingPasswordError) as excinfo:
         TokenAuth("nobody-here").token  # noqa: B018
+    assert excinfo.value.username == "nobody-here"
 
 
 def test_tokens_are_scoped_to_username(fresh_cache, mocker: MockerFixture):

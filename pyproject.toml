@@ -35,3 +35,7 @@ venv = ".venv"
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = 79
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "TRY"]
+extend-ignore = ["TRY301"]

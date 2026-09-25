@@ -43,7 +43,7 @@ class Item(_Base):
 
     @property
     def name(self) -> str:
-        """The item's basename."""
+        """The item's name."""
         return self.path.name
 
     @property

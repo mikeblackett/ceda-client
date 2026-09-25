@@ -22,6 +22,12 @@ import urllib3 as u3
 
 from ceda_client.auth import TokenAuth, TokenAuthRetryAdapter
 from ceda_client.converter import converter
+from ceda_client.errors import (
+    ChecksumMismatchError,
+    DuplicateFilenameError,
+    DuplicateFilenameErrorGroup,
+    NotOnDiskError,
+)
 from ceda_client.schema import File, Listing
 from ceda_client.token import AccessToken
 
@@ -151,7 +157,8 @@ class Client:
             pool_maxsize: HTTP connection pool size per session.
             connect_timeout: Seconds to wait when connecting, or None.
             read_timeout: Seconds to wait between read bytes, or None.
-            url: Base URL of the data endpoint; the trailing slash is normalized (added if missing).
+            url: Base URL of the data endpoint; the trailing slash is
+                normalized (added if missing).
         """
         self._auth = TokenAuth(username, password)
 
@@ -274,13 +281,11 @@ class Client:
             chunk_size: Read size for the streamed response, or None.
 
         Raises:
-            ValueError: If the file is not stored on disk (e.g. tape only).
+            NotOnDiskError: If the file is not stored on disk (e.g. tape only).
             NotADirectoryError: If ``target`` exists and is not a directory.
         """
         if not file.on_disk:
-            raise ValueError(
-                f"only files stored on disk are available for download, got {file.location!r}"
-            )
+            raise NotOnDiskError(filename=file.name, location=file.location)
         path = _ensure_target(target)
         return self._stream(
             file=file,
@@ -311,20 +316,19 @@ class Client:
             files: Files to download.
             target: Directory to download into (created if missing).
             mirror_dirs: Preserve the remote directory structure under
-                ``target``; also disables the duplicate-basename check.
-            session_factory: Override how worker sessions are created
-                (mainly for tests).
+                ``target``; also disables the duplicate-filename check.
+            session_factory: Override how worker sessions are created.
             skip_policy: How to treat a target that may already exist.
             max_workers: Thread pool size, defaulting to the client's.
             chunk_size: Read size for the streamed responses, or None.
 
         Raises:
-            ValueError: If two files share a basename and ``mirror_dirs``
-                is False, since they would overwrite each other.
+            DuplicateFilenameErrorGroup: Containing one
+                ``DuplicateFilenameError`` per duplicated filename.
             NotADirectoryError: If ``target`` exists and is not a directory.
         """
         if not mirror_dirs:
-            _check_unique_basenames(files)
+            _check_unique_filenames(files)
         path = _ensure_target(target)
         if max_workers is None:
             max_workers = self.max_workers
@@ -351,7 +355,7 @@ class Client:
         """Stream ``file`` to ``out``, verifying its md5 checksum.
 
         Never raises for download problems: failures are reported as a
-        FAILED result, and the temp file is removed on any failure.
+        FAILED result and the temp file is removed.
         """
         out.parent.mkdir(parents=True, exist_ok=True)
         if _should_skip(file, out, skip_policy):
@@ -367,10 +371,12 @@ class Client:
                     for chunk in response.iter_content(chunk_size=chunk_size):
                         f.write(chunk)
                         digest.update(chunk)
-                if file.md5 and digest.hexdigest() != file.md5.casefold():
-                    raise ValueError(
-                        f"checksum failed for {file.name}: "
-                        f"expected {file.md5}, got {digest.hexdigest()}"
+                digest_string = digest.hexdigest()
+                if file.md5 and digest_string != file.md5.casefold():
+                    raise ChecksumMismatchError(
+                        filename=file.name,
+                        expected=file.md5,
+                        actual=digest_string,
                     )
                 tmp.replace(out)
         except (KeyboardInterrupt, SystemExit) as error:
@@ -412,7 +418,8 @@ class Client:
             return session
 
         def task(file: File) -> DownloadResult:
-            # wrap submission to push session resolution onto the worker, not the main thread.
+            # wrap submission to push session resolution onto the
+            # worker, not the main thread.
             return self._stream(
                 file=file,
                 out=_target_for(file, path, mirror_dirs),
@@ -443,7 +450,7 @@ class Client:
 def _ensure_target(path: up.UPath) -> up.UPath:
     """Create ``path`` if needed; raise if it exists as a file."""
     if path.exists() and not path.is_dir():
-        raise NotADirectoryError(f"path is not a directory: {path!r}.")
+        raise NotADirectoryError(f"path is not a directory: {path!r}.")  # noqa: TRY003
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -455,21 +462,18 @@ def _target_for(file: File, path: up.UPath, mirror_dirs: bool) -> up.UPath:
     return path.joinpath(file.name)
 
 
-def _check_unique_basenames(files: Sequence[File]) -> None:
-    """Raise ValueError if any two files share a basename (case-insensitive)."""
+def _check_unique_filenames(files: Sequence[File]) -> None:
+    """Raise a DuplicateFilenameErrorGroup on duplicate filenames (case-insensitive)."""
     seen: dict[str, list[str]] = {}
     for file in files:
         seen.setdefault(file.name.lower(), []).append(file.path.as_posix())
     dupes = {name: paths for name, paths in seen.items() if len(paths) > 1}
     if dupes:
-        details = "; ".join(
-            f"{name!r}: {', '.join(sorted(paths))}"
-            for name, paths in sorted(dupes.items())
-        )
-        raise ValueError(
-            "duplicate file names would overwrite each other in a flat target: "
-            f"{details}. Pass mirror_dirs=True to preserve the remote directory "
-            "structure, or download into separate target directories."
+        raise DuplicateFilenameErrorGroup.of(
+            [
+                DuplicateFilenameError(name, matches)
+                for name, matches in sorted(dupes.items())
+            ],
         )
 
 

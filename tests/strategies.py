@@ -27,7 +27,7 @@ def access_tokens(
     if max_timedelta is None:
         max_timedelta = timedelta(days=1)
     if max_timedelta < min_timedelta:
-        raise er.InvalidArgument(f"cannot have {max_timedelta=} < {min_timedelta=}")
+        raise er.InvalidArgument(f"cannot have {max_timedelta=} < {min_timedelta=}")  # noqa: TRY003
 
     if epoch.tzinfo is None:
         timezones = st.just(None)

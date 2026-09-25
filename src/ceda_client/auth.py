@@ -11,6 +11,7 @@ import requests.auth as rqa
 import urllib3 as u3
 
 from ceda_client.converter import converter
+from ceda_client.errors import MissingPasswordError
 from ceda_client.token import AccessToken
 
 __all__ = ["TokenAuth", "TokenAuthRetryAdapter"]
@@ -89,7 +90,7 @@ class TokenAuth(rqa.AuthBase):
         (and caches) a new one.
 
         Raises:
-            RuntimeError: If no fresh token is cached and no password was
+            MissingPasswordError: If no fresh token is cached and no password was
                 provided at construction.
         """
         username = self._username
@@ -98,9 +99,7 @@ class TokenAuth(rqa.AuthBase):
         if cached is not None and cached.is_fresh:
             return cached
         if password is None:
-            raise RuntimeError(
-                f"no cached token for {username!r}; you must provide a password."
-            )
+            raise MissingPasswordError(username)
         with self._locks.setdefault(username, Lock()):  # atomic under the GIL
             cached = self._cache.get(username)
             if cached is not None and cached.is_fresh:
