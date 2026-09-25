@@ -1,4 +1,4 @@
-"""High-level CEDA client: listings, filtering, and file downloads."""
+"""High-level CEDA Archive client: listings, filtering, and file downloads."""
 
 import hashlib
 import re
@@ -168,6 +168,7 @@ class Client:
         self.pool_maxsize = pool_maxsize
         self.connect_timeout = connect_timeout
         self.read_timeout = read_timeout
+        # Normalize url with trailing slash so paths are not clobbered by `urljoin`
         self.url = url.rstrip("/") + "/"
 
         self._session: rq.Session | None = self._create_session()
@@ -218,7 +219,7 @@ class Client:
         """Fetch the raw JSON listing for a remote directory.
 
         Raises:
-            rq.HTTPError: If the request fails (e.g. 404 for a bad path).
+            rq.HTTPError: If the request fails.
         """
         url = self.resolve_url(path)
         with self.session.get(
@@ -269,7 +270,7 @@ class Client:
         """Download a single file into the ``target`` directory.
 
         The file is streamed to a temporary ``.part`` sibling whose md5 is
-        checked against the listing's, then atomically renamed into place.
+        (optionally) checked against the listing's, then atomically renamed into place.
 
         Args:
             file: The file to download.
@@ -374,7 +375,7 @@ class Client:
                 digest_string = digest.hexdigest()
                 if file.md5 and digest_string != file.md5.casefold():
                     raise ChecksumMismatchError(
-                        filename=file.name,
+                        basename=file.name,
                         expected=file.md5,
                         actual=digest_string,
                     )
@@ -418,7 +419,7 @@ class Client:
             return session
 
         def task(file: File) -> DownloadResult:
-            # wrap submission to push session resolution onto the
+            # Wrap submission to push session resolution onto the
             # worker, not the main thread.
             return self._stream(
                 file=file,

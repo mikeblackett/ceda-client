@@ -1,7 +1,7 @@
 [project]
 name = "ceda-client"
 version = "0.1.0"
-description = "Python client for the CEDA (UK Climate Data Archive) JSON directory listings and file downloads."
+description = "Python client for the CEDA Archive JSON directory listings and file downloads."
 readme = "README.md"
 authors = [
     { name = "Mike Blackett", email = "27811528+mikeblackett@users.noreply.github.com" }

@@ -51,7 +51,7 @@ def test_file_requires_alias_keys():
         "last_modified": None,
     }
     with pytest.raises(ClassValidationError):
-        # "download_url" / "_type" are python names, not the wire format
+        # "download_url" / "_type" are Python names, not the JSON format
         converter.structure({**data, "download_url": "https://example.com"}, File)
     data["download"] = "https://example.com"
     assert converter.structure(data, File).download_url == "https://example.com"

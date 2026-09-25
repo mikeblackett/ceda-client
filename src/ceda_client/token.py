@@ -24,7 +24,7 @@ def is_token_expired(expires_at: datetime, now: datetime) -> bool:
 class AccessToken:
     """Bearer token issued by CEDA's token endpoint.
 
-    Attribute names are aliased to CEDA's wire format via ``_aliases``.
+    Attribute names are aliased to CEDA's JSON format via ``_aliases``.
     """
 
     value: str = at.field(repr=False)

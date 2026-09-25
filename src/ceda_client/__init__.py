@@ -1,4 +1,4 @@
-"""Python client for the CEDA (UK Climate Data Archive) JSON directory
+"""Python client for the CEDA Archive JSON directory
 listings and file downloads.
 
 Why this exists: CEDA serves data over DAP2, and DAP2 has no int64 type.

@@ -1,4 +1,4 @@
-"""Shared cattrs converter configured for CEDA's JSON wire format."""
+"""Shared cattrs converter configured for the CEDA Archive's JSON format."""
 
 from datetime import UTC, datetime
 from typing import Any
@@ -27,8 +27,8 @@ def _is_item(typ: Any) -> bool:
 def _rename_overrides(typ: type) -> dict[str, Any]:
     """Build cattrs rename overrides from ``typ``'s ``_aliases`` mapping.
 
-    ``_aliases`` maps Python attribute names to CEDA wire keys, so
-    structure/unstructure see and produce the wire names.
+    ``_aliases`` maps Python attribute names to CEDA JSON keys, so
+    structure/unstructure see and produce the JSON names.
     """
     return {name: cat.override(rename=key) for name, key in typ._aliases.items()}
 
@@ -48,7 +48,7 @@ def unstructure_datetime(value: datetime) -> str:
 
 @converter.register_structure_hook_factory(_is_token)
 def structure_token_factory(typ: type, converter: cat.Converter):
-    """Structure ``AccessToken`` from a dict with wire-name aliases."""
+    """Structure ``AccessToken`` from a dict with JSON-name aliases."""
     return cat.gen.make_dict_structure_fn(
         cl=typ, converter=converter, **_rename_overrides(typ)
     )
@@ -56,7 +56,7 @@ def structure_token_factory(typ: type, converter: cat.Converter):
 
 @converter.register_unstructure_hook_factory(_is_token)
 def unstructure_token_factory(typ: type, converter: cat.Converter):
-    """Unstructure ``AccessToken`` to a dict with wire-name aliases."""
+    """Unstructure ``AccessToken`` to a dict with JSON-name aliases."""
     return cat.gen.make_dict_unstructure_fn(
         cl=typ, converter=converter, **_rename_overrides(typ)
     )
@@ -82,13 +82,13 @@ def _structure_item_factory(typ: type, conv: cat.Converter):
 
 @converter.register_unstructure_hook_factory(_is_item)
 def unstructure_item_factory(typ: type, converter: cat.Converter):
-    """Unstructure item classes to dicts with wire-name aliases."""
+    """Unstructure item classes to dicts with JSON-name aliases."""
     return cat.gen.make_dict_unstructure_fn(
         cl=typ, converter=converter, **_rename_overrides(typ)
     )
 
 
-# Items form a tagged union: the wire ``"type"`` field selects which class
+# Items form a tagged union: the JSON ``"type"`` field selects which class
 # to structure into.
 configure_tagged_union(
     Directory | File | Link,

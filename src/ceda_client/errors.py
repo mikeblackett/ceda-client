@@ -1,3 +1,5 @@
+"""Custom errors for the CEDA Archive Client."""
+
 from collections.abc import Sequence
 from typing import Self
 
@@ -13,26 +15,29 @@ class NotOnDiskError(Exception):
     ) -> None:
         self.filename = filename
         self.location = location
-        super().__init__(f"can't download {filename!r} with location {location!r}.")
+        super().__init__(
+            f"only files stored on disk can be downloaded,"
+            f" got {filename!r} with location {location!r}."
+        )
 
 
 class ChecksumMismatchError(Exception):
-    """Raised when a downloaded file's checksum doesn't match the expected value."""
+    """Raised when an item's checksum doesn't match the expected value."""
 
     def __init__(
         self,
         *,
-        filename: str,
+        basename: str,
         expected: str,
         actual: str,
         algorithm: str = "md5",
     ) -> None:
-        self.filename = filename
+        self.basename = basename
         self.algorithm = algorithm
         self.expected = expected
         self.actual = actual
         super().__init__(
-            f"checksum mismatch for {filename!r}: "
+            f"checksum mismatch for {basename!r}: "
             f"expected {algorithm} {expected}, got {actual}"
         )
 

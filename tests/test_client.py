@@ -147,7 +147,7 @@ def test_download_checksum_mismatch_fails(client, tmp_path):
     result = client.download(file, tmp_path)
     assert result.status is Status.FAILED
     assert isinstance(result.error, ChecksumMismatchError)
-    assert result.error.filename == "corrupt.nc"
+    assert result.error.basename == "corrupt.nc"
     assert result.error.algorithm == "md5"
     assert result.error.expected == file.md5
     assert (

@@ -1,4 +1,4 @@
-"""Data models for CEDA's JSON listing responses."""
+"""Data models for the CEDA Archive's JSON listing responses."""
 
 from abc import ABC
 from datetime import datetime
@@ -12,7 +12,7 @@ __all__ = ["Directory", "File", "Link", "Listing"]
 
 
 class ItemType(StrEnum):
-    """Kind of listing item; values match CEDA's wire ``type`` field."""
+    """Kind of listing item; values match CEDA's JSON ``type`` field."""
 
     FILE = "file"
     DIRECTORY = "dir"
@@ -20,7 +20,7 @@ class ItemType(StrEnum):
 
 
 class Location(StrEnum):
-    """Where a file's data is stored; values match CEDA's wire format."""
+    """Where a file's data is stored; values match CEDA's JSON format."""
 
     DISK = "on_disk"
     TAPE = "on_tape"

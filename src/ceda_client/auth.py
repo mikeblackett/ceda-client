@@ -1,4 +1,5 @@
-"""Token acquisition, caching, and re-authentication for CEDA requests."""
+"""Token acquisition, caching, and re-authentication for requests to the
+CEDA Archive."""
 
 from http import HTTPStatus
 from threading import Lock
@@ -107,7 +108,7 @@ class TokenAuth(rqa.AuthBase):
             gen = self._generation
             token = self._fetch(username, password)
             if gen == self._generation:
-                # avoid resurrecting cached tokens that were cleared in-flight
+                # avoid resurrecting cached tokens that were cleared mid-flight
                 self._cache[username] = token
             return token
 
@@ -117,12 +118,10 @@ class TokenAuth(rqa.AuthBase):
 
     @classmethod
     def clear(cls, username: str | None = None) -> None:
-        """Discard cached tokens, for ``username`` or all when ``username`` is None.
-
-        Bumps a generation counter first so tokens fetched in flight are
-        not re-cached after the clear.
-        """
+        """Discard cached tokens, for ``username`` or all when ``username`` is None."""
         with cls._generation_lock:
+            # Bump a generation counter so in-flight tokens are not re-cached after the
+            # clear.
             cls._generation += 1
         if username is None:
             cls._cache.clear()
