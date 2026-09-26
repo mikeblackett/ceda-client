@@ -1,6 +1,6 @@
 [project]
 name = "ceda-client"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python client for the CEDA Archive JSON directory listings and file downloads."
 readme = "README.md"
 authors = [
@@ -12,6 +12,11 @@ dependencies = [
     "cattrs>=23.1.0",
     "requests>=2.34.2",
     "universal-pathlib>=0.3.10",
+]
+
+[project.optional-dependencies]
+dagster = [
+    "dagster>=1.13.24",
 ]
 
 [dependency-groups]
