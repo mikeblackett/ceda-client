@@ -19,7 +19,7 @@ __all__ = ["TokenAuth", "TokenAuthRetryAdapter"]
 
 TOKEN_URL: Final = "https://services.ceda.ac.uk/api/token/create/"
 TIMEOUT_SECONDS: Final = 5
-DEFAULT_TOKEN_RETRIES: Final = u3.Retry(total=1, allowed_methods=["post"])
+DEFAULT_TOKEN_RETRIES: Final = u3.Retry(total=1)
 DEFAULT_POOLSIZE: Final = 10
 
 
