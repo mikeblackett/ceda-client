@@ -43,5 +43,4 @@ docstring-code-format = true
 docstring-code-line-length = 79
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "TRY"]
-extend-ignore = ["TRY301"]
+extend-ignore = []

@@ -451,7 +451,7 @@ class Client:
 def _ensure_target(path: up.UPath) -> up.UPath:
     """Create ``path`` if needed; raise if it exists as a file."""
     if path.exists() and not path.is_dir():
-        raise NotADirectoryError(f"path is not a directory: {path!r}.")  # noqa: TRY003
+        raise NotADirectoryError(f"path is not a directory: {path!r}.")
     path.mkdir(parents=True, exist_ok=True)
     return path
 

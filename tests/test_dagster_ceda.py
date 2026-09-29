@@ -1,17 +1,17 @@
 import pytest
 from pydantic import ValidationError
 
-dg = pytest.importorskip("dagster")
-
-from ceda_client.client import (  # noqa: E402
+from ceda_client.client import (
     CEDA_ENDPOINT_URL,
     DEFAULT_WORKERS,
     Client,
     Status,
 )
-from ceda_client.integrations import DagsterCEDAResource  # noqa: E402
 
-from .conftest import DATA_DIR, PASS, USER  # noqa: E402
+from .conftest import DATA_DIR, PASS, USER
+
+dg = pytest.importorskip("dagster")
+from ceda_client.integrations import DagsterCEDAResource  # noqa: E402
 
 
 def test_required_config():
