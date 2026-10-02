@@ -1,5 +1,4 @@
 import pytest
-from pydantic import ValidationError
 
 from ceda_client.client import (
     CEDA_ENDPOINT_URL,
@@ -11,6 +10,8 @@ from ceda_client.client import (
 from .conftest import DATA_DIR, PASS, USER
 
 dg = pytest.importorskip("dagster")
+from pydantic import ValidationError
+
 from ceda_client.integrations import DagsterCEDAResource
 
 

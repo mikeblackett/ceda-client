@@ -6,8 +6,10 @@ uv-managed, src layout, Python 3.14 (`.python-version`; supports >=3.12).
 `uv sync` installs the package editable into `.venv`; run everything with
 `uv run` from the repo root.
 
-- `uv sync --all-extras` — the `dagster` extra is optional; without it
-  `tests/test_dagster_ceda.py` auto-skips via `pytest.importorskip`.
+- The dev dependency group includes `ceda-client[dagster]`, so `uv sync`
+  alone installs everything the test suite needs. In an install without the
+  `dagster` extra, `tests/test_dagster_ceda.py` auto-skips via
+  `pytest.importorskip`.
 - `uv run pytest` — ~76 tests, ~20s, fully offline: `tests/conftest.py`
   runs a local `ThreadingHTTPServer` mimicking CEDA.
   Single test: `uv run pytest tests/test_client.py::test_name`.
