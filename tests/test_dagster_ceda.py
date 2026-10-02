@@ -11,7 +11,7 @@ from ceda_client.client import (
 from .conftest import DATA_DIR, PASS, USER
 
 dg = pytest.importorskip("dagster")
-from ceda_client.integrations import DagsterCEDAResource  # noqa: E402
+from ceda_client.integrations import DagsterCEDAResource
 
 
 def test_required_config():
