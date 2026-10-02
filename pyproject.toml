@@ -3,16 +3,30 @@ name = "ceda-client"
 version = "0.2.2"
 description = "Python client for the CEDA Archive JSON directory listings and file downloads."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Mike Blackett", email = "27811528+mikeblackett@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "attrs>=26.1.0",
     "cattrs>=23.1.0",
     "requests>=2.34.2",
     "universal-pathlib>=0.3.10",
 ]
+
+[project.urls]
+Repository = "https://github.com/mikeblackett/ceda-client"
 
 [project.optional-dependencies]
 dagster = [
