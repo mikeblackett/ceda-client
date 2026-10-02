@@ -9,3 +9,12 @@ wheels/
 # Virtual environments
 .venv
 *.ipynb
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+

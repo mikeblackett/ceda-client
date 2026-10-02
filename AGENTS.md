@@ -18,7 +18,9 @@ uv-managed, src layout, Python 3.14 (`.python-version`; supports >=3.12).
 - `uv run coverage run -m pytest && uv run coverage report`
 
 Keep all four green. RUF100 (unused noqa) is enforced alongside ruff's
-default rules. No CI and no pre-commit — local checks are the gate.
+default rules. CI (`.github/workflows/ci.yaml`) runs the same four checks on
+push/PR to `main` and `dev` across Python 3.12–3.14; there is no pre-commit,
+so local runs are still the first gate.
 
 ## Why this client exists
 
