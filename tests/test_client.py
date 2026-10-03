@@ -302,11 +302,18 @@ def test_download_multi_empty(client, tmp_path):
     assert batch.counter == {}
 
 
-def test_download_empty_md5_skips_verification(client, tmp_path):
+def test_download_empty_md5_skips_size_match(client, tmp_path):
+    (tmp_path / "nomd5.dat").write_bytes(b"X" * 12)  # same size, different content
     file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
-    result = client.download(file, tmp_path)
+    result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
+    assert result.status is Status.SKIPPED
+
+
+def test_download_empty_md5_redownloads_size_mismatch(client, tmp_path):
+    (tmp_path / "nomd5.dat").write_bytes(b"X" * 2)  # different size
+    file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
+    result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SUCCESS
-    assert result.target.read_bytes() == b"no-md5-bytes"
 
 
 def test_download_mirror_dirs(client, tmp_path):

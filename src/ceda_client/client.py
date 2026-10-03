@@ -486,9 +486,10 @@ def _should_skip(file: File, path: up.UPath, policy: SkipPolicy) -> bool:
         case SkipPolicy.SIZE:
             return _verify_file_size(path, file.size)
         case SkipPolicy.CHECKSUM:
-            return _verify_file_size(path, file.size) and _verify_checksum(
-                path, file.md5
+            return _verify_file_size(path, file.size) and (
+                not file.md5 or _verify_checksum(path, file.md5)
             )
+
         case SkipPolicy.OVERWRITE:
             return False
 
