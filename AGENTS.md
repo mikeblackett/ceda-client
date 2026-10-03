@@ -55,7 +55,7 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
 - CEDA timestamps are naive UTC; the converter assumes naive → UTC.
 - `File.md5` may be `""` (checksum check then skipped); `location` may be a
   bare string (normalized to a list); tape-only files (`on_tape`) raise
-  `NotOnDiskError` on download.
+  `NotOnDiskError` on download; `NotOnDiskErrorGroup` on multi-download.
 - Downloads stream to a `.part` sibling and atomically rename; md5 uses
   `usedforsecurity=False`.
 - `Client` normalizes `url` to a trailing slash (required for `urljoin`).

@@ -21,6 +21,17 @@ class NotOnDiskError(Exception):
         )
 
 
+class NotOnDiskErrorGroup(ExceptionGroup[NotOnDiskError]):
+    """Group of ``NotOnDiskError`` for a multi-download batch."""
+
+    @classmethod
+    def of(cls, errors: Sequence[NotOnDiskError]) -> Self:
+        return cls(
+            "only files stored on disk can be downloaded.",
+            list(errors),
+        )
+
+
 class ChecksumMismatchError(Exception):
     """Raised when an item's checksum doesn't match the expected value."""
 

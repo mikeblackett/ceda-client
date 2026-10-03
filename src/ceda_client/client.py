@@ -27,6 +27,7 @@ from ceda_client.errors import (
     DuplicateFilenameError,
     DuplicateFilenameErrorGroup,
     NotOnDiskError,
+    NotOnDiskErrorGroup,
 )
 from ceda_client.schema import File, Listing
 from ceda_client.token import AccessToken
@@ -327,9 +328,11 @@ class Client:
             DuplicateFilenameErrorGroup: Containing one
                 ``DuplicateFilenameError`` per duplicated filename.
             NotADirectoryError: If ``target`` exists and is not a directory.
+            NotADirectoryErrorGroup: If any file is not stored on disk (e.g. tape only).
         """
         if not mirror_dirs:
             _check_unique_filenames(files)
+        _check_on_disk(files)
         path = _ensure_target(target)
         if max_workers is None:
             max_workers = self.max_workers
@@ -475,6 +478,18 @@ def _check_unique_filenames(files: Sequence[File]) -> None:
                 DuplicateFilenameError(name, matches)
                 for name, matches in sorted(dupes.items())
             ],
+        )
+
+
+def _check_on_disk(files: Sequence[File]) -> None:
+    """Raise a NotADirectoryErrorGroup on files not stored on disk."""
+    invalid = [file for file in files if not file.on_disk]
+    if invalid:
+        raise NotOnDiskErrorGroup.of(
+            [
+                NotOnDiskError(filename=file.name, location=file.location)
+                for file in invalid
+            ]
         )
 
 

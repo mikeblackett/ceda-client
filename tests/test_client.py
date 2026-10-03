@@ -16,6 +16,7 @@ from ceda_client.errors import (
     DuplicateFilenameError,
     DuplicateFilenameErrorGroup,
     NotOnDiskError,
+    NotOnDiskErrorGroup,
 )
 from ceda_client.schema import File
 
@@ -264,6 +265,34 @@ def test_download_tape_only_raises(client, tmp_path):
         client.download(file, tmp_path)
     assert excinfo.value.filename == "tape.nc"
     assert list(excinfo.value.location) == ["on_tape"]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_download_multi_single_tape_only_raises(client, tmp_path):
+    file = _file("tape.nc", "/x/tape.nc", location=["on_tape"])
+    with pytest.raises(NotOnDiskErrorGroup) as excinfo:
+        client.download_multi([file], tmp_path)
+    assert len(excinfo.value.exceptions) == 1
+    error = excinfo.value.exceptions[0]
+    assert isinstance(error, NotOnDiskError)
+    assert error.filename == "tape.nc"
+    assert list(error.location) == ["on_tape"]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_download_multi_mixed_location_raises(client, tmp_path):
+    files = [
+        _file("tape-1.nc", "/x/tape-1.nc", location=["on_tape"]),
+        _file("disk.nc", "/x/disk.nc", location=["on_disk"]),
+        _file("tape-2.nc", "/x/tape-2.nc", location=["on_tape"]),
+    ]
+    with pytest.raises(NotOnDiskErrorGroup) as excinfo:
+        client.download_multi(files, tmp_path)
+    assert len(excinfo.value.exceptions) == 2
+    error = excinfo.value.exceptions[0]
+    assert isinstance(error, NotOnDiskError)
+    assert error.filename == "tape-1.nc"
+    assert list(error.location) == ["on_tape"]
     assert list(tmp_path.iterdir()) == []
 
 

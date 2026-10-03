@@ -21,6 +21,7 @@ from ceda_client.errors import (
     DuplicateFilenameErrorGroup,
     MissingPasswordError,
     NotOnDiskError,
+    NotOnDiskErrorGroup,
 )
 from ceda_client.schema import Directory, File, Item, ItemType, Link, Listing, Location
 from ceda_client.token import AccessToken
@@ -43,6 +44,7 @@ __all__ = [
     "Location",
     "MissingPasswordError",
     "NotOnDiskError",
+    "NotOnDiskErrorGroup",
     "ResultBatch",
     "SkipPolicy",
     "Status",
