@@ -179,7 +179,8 @@ def test_download_multi_interrupt_shuts_down_executor(
         )
 
     assert any(
-        call.kwargs.get("cancel_futures") is True for call in shutdown.call_args_list
+        call.kwargs.get("cancel_futures") is True
+        for call in shutdown.call_args_list
     )
     assert sessions and all(session.closed for session in sessions)
     assert list(tmp_path.glob("*.part")) == []
@@ -194,7 +195,9 @@ def test_skip_exists(client, tmp_path):
 
 
 def test_skip_size_match(client, tmp_path):
-    (tmp_path / "alpha.nc").write_bytes(b"X" * 11)  # same size, different content
+    (tmp_path / "alpha.nc").write_bytes(
+        b"X" * 11
+    )  # same size, different content
     file = client.get_files(DATA_DIR, pattern="^alpha")[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.SIZE)
     assert result.status is Status.SKIPPED
@@ -317,7 +320,9 @@ def test_download_multi_empty(client, tmp_path):
 
 
 def test_download_empty_md5_skips_size_match(client, tmp_path):
-    (tmp_path / "nomd5.dat").write_bytes(b"X" * 12)  # same size, different content
+    (tmp_path / "nomd5.dat").write_bytes(
+        b"X" * 12
+    )  # same size, different content
     file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SKIPPED
@@ -390,7 +395,9 @@ def test_download_multi_mirror_dirs(client, tmp_path):
     batch = client.download_multi(files, tmp_path, mirror_dirs=True)
     assert dict(batch.counter) == {Status.SUCCESS: 2}
     assert (tmp_path / DATA_DIR / "alpha.nc").read_bytes() == b"alpha-bytes"
-    assert (tmp_path / "other-tree" / "alpha.nc").read_bytes() == b"alpha-bytes"
+    assert (
+        tmp_path / "other-tree" / "alpha.nc"
+    ).read_bytes() == b"alpha-bytes"
 
 
 def test_client_reauths_on_401(client, ceda_server, mocker: MockerFixture):
@@ -399,7 +406,9 @@ def test_client_reauths_on_401(client, ceda_server, mocker: MockerFixture):
     ceda_server.valid_tokens.add(new_token)
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
-        return_value=AccessToken(new_token, datetime.now(UTC) + timedelta(hours=1)),
+        return_value=AccessToken(
+            new_token, datetime.now(UTC) + timedelta(hours=1)
+        ),
     )
 
     listing = client.get_listing(DATA_DIR)

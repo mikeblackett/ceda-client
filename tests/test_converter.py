@@ -13,7 +13,9 @@ from ceda_client.schema import File, Listing
 @hp.given(st.datetimes())
 def test_datetime_structure_naive(value: datetime):
     naive = value.replace(tzinfo=None)
-    assert converter.structure(naive.isoformat(), datetime) == naive.replace(tzinfo=UTC)
+    assert converter.structure(naive.isoformat(), datetime) == naive.replace(
+        tzinfo=UTC
+    )
 
 
 @hp.given(st.datetimes(timezones=st.just(UTC)))
@@ -52,9 +54,13 @@ def test_file_requires_alias_keys():
     }
     with pytest.raises(ClassValidationError):
         # "download_url" / "_type" are Python names, not the JSON format
-        converter.structure({**data, "download_url": "https://example.com"}, File)
+        converter.structure(
+            {**data, "download_url": "https://example.com"}, File
+        )
     data["download"] = "https://example.com"
-    assert converter.structure(data, File).download_url == "https://example.com"
+    assert (
+        converter.structure(data, File).download_url == "https://example.com"
+    )
 
 
 def test_listing_unstructure_roundtrip():

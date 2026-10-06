@@ -3,7 +3,11 @@ from datetime import UTC, datetime, timedelta
 import hypothesis as hp
 import hypothesis.strategies as st
 
-from ceda_client.token import EXPIRY_MARGIN_MINUTES, AccessToken, is_token_expired
+from ceda_client.token import (
+    EXPIRY_MARGIN_MINUTES,
+    AccessToken,
+    is_token_expired,
+)
 
 from .strategies import access_tokens
 
@@ -17,7 +21,9 @@ def test_expired_at_margin_boundary_is_fresh():
 
 
 def test_expired_just_before_margin():
-    assert is_token_expired(_NOW + _MARGIN - timedelta(seconds=1), _NOW) is True
+    assert (
+        is_token_expired(_NOW + _MARGIN - timedelta(seconds=1), _NOW) is True
+    )
 
 
 def test_expired_when_expiring_now():
@@ -30,10 +36,14 @@ def test_expired_when_in_past():
 
 def test_naive_expires_treated_as_utc():
     assert (
-        is_token_expired((_NOW - timedelta(seconds=1)).replace(tzinfo=None), _NOW)
+        is_token_expired(
+            (_NOW - timedelta(seconds=1)).replace(tzinfo=None), _NOW
+        )
         is True
     )
-    assert is_token_expired((_NOW + _MARGIN).replace(tzinfo=None), _NOW) is False
+    assert (
+        is_token_expired((_NOW + _MARGIN).replace(tzinfo=None), _NOW) is False
+    )
 
 
 @hp.given(
@@ -42,7 +52,9 @@ def test_naive_expires_treated_as_utc():
         max_value=datetime(2100, 1, 1, tzinfo=UTC),
         timezones=st.just(UTC),
     ),
-    offset=st.timedeltas(min_value=timedelta(days=-1), max_value=timedelta(days=1)),
+    offset=st.timedeltas(
+        min_value=timedelta(days=-1), max_value=timedelta(days=1)
+    ),
 )
 def test_expired_iff_within_margin(now: datetime, offset: timedelta):
     expires_at = now + offset
@@ -54,7 +66,9 @@ def test_property_expired_for_past_token(token: AccessToken):
     assert token.is_expired is True
 
 
-@hp.given(access_tokens(epoch=datetime.now(UTC), min_timedelta=timedelta(hours=1)))
+@hp.given(
+    access_tokens(epoch=datetime.now(UTC), min_timedelta=timedelta(hours=1))
+)
 def test_property_fresh_for_future_token(token: AccessToken):
     assert token.is_fresh is True
 

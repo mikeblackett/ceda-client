@@ -83,7 +83,9 @@ def test_bare_string_location_structures():
     """CEDA sometimes returns location as a bare string, not a list."""
     listing = converter.structure(json.loads(FIXTURE.read_text()), Listing)
     pdc = next(
-        f for f in listing.files if f.name == "00README" and f.directory == Path("/pdc")
+        f
+        for f in listing.files
+        if f.name == "00README" and f.directory == Path("/pdc")
     )
     assert pdc.location == [Location.DISK]
     assert pdc.on_disk is True
@@ -95,7 +97,9 @@ def test_file_roundtrip(real_listing):
         for f in converter.structure(real_listing, Listing).files
         if f.name == "00README" and f.directory == Path("/neodc")
     )
-    assert converter.structure(converter.unstructure(original), File) == original
+    assert (
+        converter.structure(converter.unstructure(original), File) == original
+    )
 
 
 def test_dual_location_file():

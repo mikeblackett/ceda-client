@@ -31,7 +31,9 @@ def test_returns_cached_token(fresh_cache, mocker: MockerFixture):
 
 def test_fetches_fresh_token(stale_cache, mocker: MockerFixture):
     # stale_cache fixture populates cache with stale USER: FAKE_TOKEN
-    fetched = AccessToken("fresh-token-xyz", datetime.now(UTC) + timedelta(days=3))
+    fetched = AccessToken(
+        "fresh-token-xyz", datetime.now(UTC) + timedelta(days=3)
+    )
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
         return_value=fetched,
@@ -45,7 +47,9 @@ def test_fetches_fresh_token(stale_cache, mocker: MockerFixture):
 
 def test_fetches_token_when_cache_empty(mocker: MockerFixture):
     TokenAuth.clear()
-    fetched = AccessToken("fresh-token-xyz", datetime.now(UTC) + timedelta(days=3))
+    fetched = AccessToken(
+        "fresh-token-xyz", datetime.now(UTC) + timedelta(days=3)
+    )
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
         return_value=fetched,
@@ -67,7 +71,9 @@ def test_token_requires_password_when_no_cache():
 
 
 def test_tokens_are_scoped_to_username(fresh_cache, mocker: MockerFixture):
-    fresh = AccessToken("fresh-token-xyz", datetime.now(UTC) + timedelta(days=3))
+    fresh = AccessToken(
+        "fresh-token-xyz", datetime.now(UTC) + timedelta(days=3)
+    )
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
         return_value=fresh,
@@ -99,7 +105,9 @@ def test_call_sets_authorization_header(fresh_cache, mocker: MockerFixture):
 
 def test_token_fetch_under_concurrency(mocker: MockerFixture):
     TokenAuth.clear()
-    fetched = AccessToken("concurrent-token", datetime.now(UTC) + timedelta(hours=1))
+    fetched = AccessToken(
+        "concurrent-token", datetime.now(UTC) + timedelta(hours=1)
+    )
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
         return_value=fetched,

@@ -64,7 +64,10 @@ class File(Item):
     location: list[Location]
     md5: str
     size: int
-    _aliases: ClassVar[dict[str, str]] = {**Item._aliases, "download_url": "download"}
+    _aliases: ClassVar[dict[str, str]] = {
+        **Item._aliases,
+        "download_url": "download",
+    }
 
     @property
     def extension(self) -> str:

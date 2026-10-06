@@ -150,7 +150,9 @@ class TokenAuthRetryAdapter(rqh.HTTPAdapter):
         self._auth = auth
         super().__init__(*args, **kwargs)
 
-    def send(self, request: rq.PreparedRequest, *args, **kwargs) -> rq.Response:
+    def send(
+        self, request: rq.PreparedRequest, *args, **kwargs
+    ) -> rq.Response:
         """Send ``request``, retrying once with a fresh token if it 401s."""
         response = super().send(request, *args, **kwargs)
         if response.status_code == HTTPStatus.UNAUTHORIZED:

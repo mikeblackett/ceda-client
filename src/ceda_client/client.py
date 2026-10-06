@@ -102,7 +102,9 @@ class ResultBatch:
     skipped: tuple[DownloadResult, ...] = field(init=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "counter", Counter(r.status for r in self.results))
+        object.__setattr__(
+            self, "counter", Counter(r.status for r in self.results)
+        )
         object.__setattr__(
             self,
             "success",
@@ -114,7 +116,9 @@ class ResultBatch:
             tuple(r for r in self.results if r.status is Status.SKIPPED),
         )
         object.__setattr__(
-            self, "failed", tuple(r for r in self.results if r.status is Status.FAILED)
+            self,
+            "failed",
+            tuple(r for r in self.results if r.status is Status.FAILED),
         )
 
 

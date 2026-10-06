@@ -14,7 +14,13 @@ prefer a DAP2 tool like ``pydap``.
 from importlib.metadata import version
 
 from ceda_client.auth import TokenAuth
-from ceda_client.client import Client, DownloadResult, ResultBatch, SkipPolicy, Status
+from ceda_client.client import (
+    Client,
+    DownloadResult,
+    ResultBatch,
+    SkipPolicy,
+    Status,
+)
 from ceda_client.errors import (
     ChecksumMismatchError,
     DuplicateFilenameError,
@@ -23,7 +29,15 @@ from ceda_client.errors import (
     NotOnDiskError,
     NotOnDiskErrorGroup,
 )
-from ceda_client.schema import Directory, File, Item, ItemType, Link, Listing, Location
+from ceda_client.schema import (
+    Directory,
+    File,
+    Item,
+    ItemType,
+    Link,
+    Listing,
+    Location,
+)
 from ceda_client.token import AccessToken
 
 __version__ = version("ceda-client")

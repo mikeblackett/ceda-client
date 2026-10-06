@@ -53,6 +53,9 @@ build-backend = "uv_build"
 venvPath = "."
 venv = ".venv"
 
+[tool.ruff]
+line-length = 79
+
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = 79

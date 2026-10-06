@@ -30,7 +30,9 @@ def _rename_overrides(typ: type) -> dict[str, Any]:
     ``_aliases`` maps Python attribute names to CEDA JSON keys, so
     structure/unstructure see and produce the JSON names.
     """
-    return {name: cat.override(rename=key) for name, key in typ._aliases.items()}
+    return {
+        name: cat.override(rename=key) for name, key in typ._aliases.items()
+    }
 
 
 @converter.register_structure_hook

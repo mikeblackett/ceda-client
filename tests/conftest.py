@@ -76,7 +76,10 @@ def ceda_server():
             pass
 
         def _send(
-            self, code: int, body: bytes, ctype: str = "application/octet-stream"
+            self,
+            code: int,
+            body: bytes,
+            ctype: str = "application/octet-stream",
         ) -> None:
             self.send_response(code)
             self.send_header("Content-Type", ctype)
@@ -86,7 +89,9 @@ def ceda_server():
 
         def do_GET(self) -> None:
             server = cast(_Server, self.server)
-            token = self.headers.get("Authorization", "").removeprefix("Bearer ")
+            token = self.headers.get("Authorization", "").removeprefix(
+                "Bearer "
+            )
             if token not in server.valid_tokens:
                 self._send(401, b"unauthorized", "text/plain")
                 return
@@ -98,7 +103,11 @@ def ceda_server():
                 else:
                     self._send(404, b"not found")
             elif path.startswith("/data/"):
-                self._send(200, json.dumps(server.listing).encode(), "application/json")
+                self._send(
+                    200,
+                    json.dumps(server.listing).encode(),
+                    "application/json",
+                )
             else:
                 self._send(404, b"not found")
 
