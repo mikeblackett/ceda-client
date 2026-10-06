@@ -1,6 +1,6 @@
 [project]
 name = "ceda-client"
-version = "0.2.4"
+version = "0.3.4"
 description = "Python client for the CEDA Archive JSON directory listings and file downloads."
 readme = "README.md"
 license = "MIT"
@@ -59,3 +59,6 @@ docstring-code-line-length = 79
 
 [tool.ruff.lint]
 extend-ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

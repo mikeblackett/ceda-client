@@ -25,16 +25,17 @@ def test_required_config():
 
 
 def test_get_client_applies_config(mocker):
+    url = "http://example.com"
     resource = DagsterCEDAResource(
         username=USER,
         password=PASS,
-        url="http://example.com",
+        url=url,
         max_workers=4,
     )
     close = mocker.spy(Client, "close")
     with resource.get_client() as client:
         assert client.username == USER
-        assert client.url == "http://example.com/"
+        assert client.url == url
         assert client.max_workers == 4
     close.assert_called_once()
 

@@ -58,7 +58,9 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   `NotOnDiskError` on download; `NotOnDiskErrorGroup` on multi-download.
 - Downloads stream to a `.part` sibling and atomically rename; md5 uses
   `usedforsecurity=False`.
-- `Client` normalizes `url` to a trailing slash (required for `urljoin`).
+- Listing paths are joined onto Client.url via plain urllib.parse.urljoin;
+  a base URL with a path must include a trailing slash or relative paths
+  will replace its last segment.
 - Tests must never touch the network: seed/clear the token cache with the
   `token_cache` / `fresh_cache` / `stale_cache` fixtures from conftest.
 - Branch workflow: develop on `dev`, merge to `main`

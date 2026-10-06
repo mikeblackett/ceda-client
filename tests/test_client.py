@@ -9,7 +9,7 @@ import requests as rq
 from pytest_mock import MockerFixture
 
 from ceda_client.auth import AccessToken, TokenAuth
-from ceda_client.client import Client, SkipPolicy, Status
+from ceda_client.client import SkipPolicy, Status
 from ceda_client.converter import converter
 from ceda_client.errors import (
     ChecksumMismatchError,
@@ -21,12 +21,6 @@ from ceda_client.errors import (
 from ceda_client.schema import File
 
 from .conftest import DATA_DIR, FAKE_TOKEN, PASS, USER
-
-
-def test_resolve_url(client):
-    base = client.url.rstrip("/")
-    assert client.resolve_url("data/files") == f"{base}/data/files"
-    assert client.resolve_url("/data/files") == f"{base}/data/files"
 
 
 def _file(name: str, path: str, location: list[str] | None = None) -> File:
@@ -73,15 +67,6 @@ class _InterruptingSession:
 
     def close(self) -> None:
         self.closed = True
-
-
-def test_base_url_path_is_preserved():
-    c = Client(USER, PASS, url="http://h/proxy")
-    try:
-        assert c.url == "http://h/proxy/"
-        assert c.resolve_url("data/files") == "http://h/proxy/data/files"
-    finally:
-        c.close()
 
 
 def test_get_listing(client):

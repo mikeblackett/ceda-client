@@ -158,8 +158,7 @@ class Client:
             pool_maxsize: HTTP connection pool size per session.
             connect_timeout: Seconds to wait when connecting, or None.
             read_timeout: Seconds to wait between read bytes, or None.
-            url: Base URL of the data endpoint; the trailing slash is
-                normalized (added if missing).
+            url: Base URL of the data endpoint.
         """
         self._auth = TokenAuth(username, password)
 
@@ -169,8 +168,7 @@ class Client:
         self.pool_maxsize = pool_maxsize
         self.connect_timeout = connect_timeout
         self.read_timeout = read_timeout
-        # Normalize url with trailing slash so paths are not clobbered by `urljoin`
-        self.url = url.rstrip("/") + "/"
+        self.url = url
 
         self._session: rq.Session | None = self._create_session()
 
@@ -212,17 +210,13 @@ class Client:
         session.mount("http://", adapter)
         return session
 
-    def resolve_url(self, path: str) -> str:
-        """Resolve ``path`` against the base URL, tolerating a leading slash."""
-        return urljoin(self.url, path.lstrip("/"))
-
     def get_json_listing(self, path: str) -> dict[str, Any]:
         """Fetch the raw JSON listing for a remote directory.
 
         Raises:
             rq.HTTPError: If the request fails.
         """
-        url = self.resolve_url(path)
+        url = urljoin(self.url, path)
         with self.session.get(
             url,
             params={"json": ""},
