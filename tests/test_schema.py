@@ -32,7 +32,7 @@ def test_real_listing_item_types(real_listing):
     listing = converter.structure(real_listing, Listing)
     assert len(listing.files) == 2
     assert len(listing.directories) == 2
-    assert sum(isinstance(i, Link) for i in listing.items) == 1
+    assert len(listing.links) == 1
 
 
 def test_file_fields(real_listing):
