@@ -7,7 +7,7 @@ from ceda_client.client import (
     Status,
 )
 
-from .conftest import DATA_DIR, PASS, USER
+from .conftest import DATA_DIR, PASSWORD, USERNAME
 
 dg = pt.importorskip("dagster")
 from pydantic import ValidationError
@@ -17,9 +17,9 @@ from ceda_client.integrations import DagsterCEDAResource
 
 def test_required_config():
     with pt.raises(ValidationError):
-        DagsterCEDAResource(username=USER)  # pyright: ignore[reportCallIssue]
-    resource = DagsterCEDAResource(username=USER, password=PASS)
-    assert resource.username == USER
+        DagsterCEDAResource(username=USERNAME)  # pyright: ignore[reportCallIssue]
+    resource = DagsterCEDAResource(username=USERNAME, password=PASSWORD)
+    assert resource.username == USERNAME
     assert resource.url == CEDA_ENDPOINT_URL
     assert resource.max_workers == DEFAULT_WORKERS
 
@@ -27,23 +27,23 @@ def test_required_config():
 def test_get_client_applies_config(mocker):
     url = "http://example.com"
     resource = DagsterCEDAResource(
-        username=USER,
-        password=PASS,
+        username=USERNAME,
+        password=PASSWORD,
         url=url,
         max_workers=4,
     )
     close = mocker.spy(Client, "close")
     with resource.get_client() as client:
-        assert client.username == USER
+        assert client.username == USERNAME
         assert client.url == url
         assert client.max_workers == 4
     close.assert_called_once()
 
 
-def test_download_in_job(ceda_server, token_cache, tmp_path):
+def test_download_in_job(ceda_server, fresh_token_cache, tmp_path):
     resource = DagsterCEDAResource(
-        username=USER,
-        password=PASS,
+        username=USERNAME,
+        password=PASSWORD,
         url=ceda_server.base,
     )
 

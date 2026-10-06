@@ -20,7 +20,7 @@ from ceda_client.errors import (
 )
 from ceda_client.schema import File
 
-from .conftest import DATA_DIR, FAKE_TOKEN, PASS, USER
+from .conftest import DATA_DIR, FAKE_TOKEN_VALUE, PASSWORD, USERNAME
 
 
 def _file(name: str, path: str, location: list[str] | None = None) -> File:
@@ -402,7 +402,7 @@ def test_download_multi_mirror_dirs(client, tmp_path):
 
 def test_client_reauths_on_401(client, ceda_server, mocker: MockerFixture):
     new_token = "reauth-token-xyz"
-    ceda_server.valid_tokens.discard(FAKE_TOKEN)
+    ceda_server.valid_tokens.discard(FAKE_TOKEN_VALUE)
     ceda_server.valid_tokens.add(new_token)
     mock = mocker.patch(
         "ceda_client.auth.TokenAuth._fetch",
@@ -414,8 +414,8 @@ def test_client_reauths_on_401(client, ceda_server, mocker: MockerFixture):
     listing = client.get_listing(DATA_DIR)
 
     assert len(listing.items) > 0
-    mock.assert_called_once_with(USER, PASS)
-    assert TokenAuth._cache[USER].value == new_token
+    mock.assert_called_once_with(USERNAME, PASSWORD)
+    assert TokenAuth._cache[USERNAME].value == new_token
 
 
 def test_client_context_manager_closes_session(client):

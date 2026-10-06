@@ -62,6 +62,6 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   a base URL with a path must include a trailing slash or relative paths
   will replace its last segment.
 - Tests must never touch the network: seed/clear the token cache with the
-  `token_cache` / `fresh_cache` / `stale_cache` fixtures from conftest.
+  `token_cache` / `fresh_token_cache` / `stale_token_cache` fixtures from conftest.
 - Branch workflow: develop on `dev`, merge to `main`
   (github.com/mikeblackett/ceda-client).

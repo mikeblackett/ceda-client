@@ -12,9 +12,9 @@ import pytest as pt
 from ceda_client.auth import AccessToken, TokenAuth
 from ceda_client.client import Client
 
-USER = "testuser"
-PASS = "testpass"
-FAKE_TOKEN = "fake-token-123"
+USERNAME = "testuser"
+PASSWORD = "testpass"
+FAKE_TOKEN_VALUE = "fake-token-123"
 DATA_DIR = "data/files"
 
 
@@ -23,22 +23,10 @@ def _md5(data: bytes) -> str:
 
 
 @pt.fixture
-def token_cache():
-    """Seed the class-level token cache so no network auth happens."""
+def fresh_token_cache():
     TokenAuth.clear()
-    TokenAuth._cache[USER] = AccessToken(
-        value=FAKE_TOKEN,
-        expires_at=datetime.now(UTC) + timedelta(hours=1),
-    )
-    yield
-    TokenAuth.clear()
-
-
-@pt.fixture
-def fresh_cache():
-    TokenAuth.clear()
-    TokenAuth._cache[USER] = AccessToken(
-        value=FAKE_TOKEN,
+    TokenAuth._cache[USERNAME] = AccessToken(
+        value=FAKE_TOKEN_VALUE,
         expires_at=datetime.now(UTC) + timedelta(days=3),
     )
     yield
@@ -46,14 +34,20 @@ def fresh_cache():
 
 
 @pt.fixture
-def stale_cache():
+def stale_token_cache():
     TokenAuth.clear()
-    TokenAuth._cache[USER] = AccessToken(
-        value=FAKE_TOKEN,
+    TokenAuth._cache[USERNAME] = AccessToken(
+        value=FAKE_TOKEN_VALUE,
         expires_at=datetime.now(UTC) - timedelta(hours=1),
     )
     yield
     TokenAuth.clear()
+
+
+@pt.fixture
+def empty_token_cache():
+    TokenAuth.clear()
+    yield
 
 
 @dataclass
@@ -178,7 +172,7 @@ def ceda_server():
 
     httpd.files = files
     httpd.listing = {"path": f"/{DATA_DIR}", "items": items}
-    valid_tokens: set[str] = {FAKE_TOKEN}
+    valid_tokens: set[str] = {FAKE_TOKEN_VALUE}
     httpd.valid_tokens = valid_tokens
 
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
@@ -189,5 +183,5 @@ def ceda_server():
 
 
 @pt.fixture
-def client(ceda_server, token_cache):
-    return Client(USER, PASS, url=ceda_server.base)
+def client(ceda_server, fresh_token_cache):
+    return Client(USERNAME, PASSWORD, url=ceda_server.base)
