@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Self, cast
 
-import pytest
+import pytest as pt
 import requests as rq
 from pytest_mock import MockerFixture
 
@@ -106,7 +106,7 @@ def test_get_files_combined_filters(client):
 
 
 def test_get_json_listing_error_propagates(client):
-    with pytest.raises(rq.HTTPError) as excinfo:
+    with pt.raises(rq.HTTPError) as excinfo:
         client.get_json_listing("does-not-exist")
     assert excinfo.value.response is not None
     assert excinfo.value.response.status_code == 404
@@ -155,7 +155,7 @@ def test_download_http_error_fails(client, tmp_path):
 def test_download_interrupt_removes_temp_file(client, tmp_path):
     file = client.get_files(DATA_DIR, pattern="^alpha")[0]
     client._session = cast("rq.Session", _InterruptingSession())
-    with pytest.raises(KeyboardInterrupt):
+    with pt.raises(KeyboardInterrupt):
         client.download(file, tmp_path, skip_policy=SkipPolicy.OVERWRITE)
     assert not (tmp_path / "alpha.nc").exists()
     assert list(tmp_path.glob("*.part")) == []
@@ -173,7 +173,7 @@ def test_download_multi_interrupt_shuts_down_executor(
         sessions.append(session)
         return cast("rq.Session", session)
 
-    with pytest.raises(KeyboardInterrupt):
+    with pt.raises(KeyboardInterrupt):
         client.download_multi(
             files, tmp_path, mirror_dirs=True, session_factory=factory
         )
@@ -243,13 +243,13 @@ def test_download_target_is_file_raises(client, tmp_path):
     target = tmp_path / "notadir"
     target.write_bytes(b"x")
     file = client.get_files(DATA_DIR, pattern="^alpha")[0]
-    with pytest.raises(NotADirectoryError):
+    with pt.raises(NotADirectoryError):
         client.download(file, target)
 
 
 def test_download_tape_only_raises(client, tmp_path):
     file = _file("tape.nc", "/x/tape.nc", location=["on_tape"])
-    with pytest.raises(NotOnDiskError) as excinfo:
+    with pt.raises(NotOnDiskError) as excinfo:
         client.download(file, tmp_path)
     assert excinfo.value.filename == "tape.nc"
     assert list(excinfo.value.location) == ["on_tape"]
@@ -258,7 +258,7 @@ def test_download_tape_only_raises(client, tmp_path):
 
 def test_download_multi_single_tape_only_raises(client, tmp_path):
     file = _file("tape.nc", "/x/tape.nc", location=["on_tape"])
-    with pytest.raises(NotOnDiskErrorGroup) as excinfo:
+    with pt.raises(NotOnDiskErrorGroup) as excinfo:
         client.download_multi([file], tmp_path)
     assert len(excinfo.value.exceptions) == 1
     error = excinfo.value.exceptions[0]
@@ -274,7 +274,7 @@ def test_download_multi_mixed_location_raises(client, tmp_path):
         _file("disk.nc", "/x/disk.nc", location=["on_disk"]),
         _file("tape-2.nc", "/x/tape-2.nc", location=["on_tape"]),
     ]
-    with pytest.raises(NotOnDiskErrorGroup) as excinfo:
+    with pt.raises(NotOnDiskErrorGroup) as excinfo:
         client.download_multi(files, tmp_path)
     assert len(excinfo.value.exceptions) == 2
     error = excinfo.value.exceptions[0]
@@ -358,7 +358,7 @@ def test_download_multi_duplicate_filenames_raise(client, tmp_path):
         ),
     )
     for files, name, matches in cases:
-        with pytest.raises(DuplicateFilenameErrorGroup) as excinfo:
+        with pt.raises(DuplicateFilenameErrorGroup) as excinfo:
             client.download_multi(files, tmp_path)
         assert list(tmp_path.iterdir()) == []
         error = excinfo.value.exceptions[0]
@@ -374,7 +374,7 @@ def test_download_multi_multiple_duplicate_filenames_raise(client, tmp_path):
         _file("y.nc", "/a/y.nc"),
         _file("y.nc", "/b/y.nc"),
     ]
-    with pytest.raises(DuplicateFilenameErrorGroup) as excinfo:
+    with pt.raises(DuplicateFilenameErrorGroup) as excinfo:
         client.download_multi(files, tmp_path)
     assert list(tmp_path.iterdir()) == []
     errors = [

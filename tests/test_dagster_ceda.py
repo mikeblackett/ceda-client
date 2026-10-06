@@ -1,4 +1,4 @@
-import pytest
+import pytest as pt
 
 from ceda_client.client import (
     CEDA_ENDPOINT_URL,
@@ -9,14 +9,14 @@ from ceda_client.client import (
 
 from .conftest import DATA_DIR, PASS, USER
 
-dg = pytest.importorskip("dagster")
+dg = pt.importorskip("dagster")
 from pydantic import ValidationError
 
 from ceda_client.integrations import DagsterCEDAResource
 
 
 def test_required_config():
-    with pytest.raises(ValidationError):
+    with pt.raises(ValidationError):
         DagsterCEDAResource(username=USER)  # pyright: ignore[reportCallIssue]
     resource = DagsterCEDAResource(username=USER, password=PASS)
     assert resource.username == USER

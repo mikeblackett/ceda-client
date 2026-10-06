@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import cast
 from urllib.parse import urlparse
 
-import pytest
+import pytest as pt
 
 from ceda_client.auth import AccessToken, TokenAuth
 from ceda_client.client import Client
@@ -22,7 +22,7 @@ def _md5(data: bytes) -> str:
     return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
 
-@pytest.fixture
+@pt.fixture
 def token_cache():
     """Seed the class-level token cache so no network auth happens."""
     TokenAuth.clear()
@@ -34,7 +34,7 @@ def token_cache():
     TokenAuth.clear()
 
 
-@pytest.fixture
+@pt.fixture
 def fresh_cache():
     TokenAuth.clear()
     TokenAuth._cache[USER] = AccessToken(
@@ -45,7 +45,7 @@ def fresh_cache():
     TokenAuth.clear()
 
 
-@pytest.fixture
+@pt.fixture
 def stale_cache():
     TokenAuth.clear()
     TokenAuth._cache[USER] = AccessToken(
@@ -62,7 +62,7 @@ class CedaServer:
     valid_tokens: set[str] = field(default_factory=set)
 
 
-@pytest.fixture
+@pt.fixture
 def ceda_server():
     """A local HTTP server that mimics the CEDA data endpoints."""
 
@@ -188,6 +188,6 @@ def ceda_server():
     thread.join(timeout=5)
 
 
-@pytest.fixture
+@pt.fixture
 def client(ceda_server, token_cache):
     return Client(USER, PASS, url=ceda_server.base)

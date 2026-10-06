@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import hypothesis as hp
 import hypothesis.strategies as st
-import pytest
+import pytest as pt
 from cattrs.errors import ClassValidationError
 
 from ceda_client.auth import AccessToken
@@ -29,7 +29,7 @@ def test_datetime_unstructure(value: datetime):
 
 
 def test_datetime_invalid_raises():
-    with pytest.raises(ValueError):
+    with pt.raises(ValueError):
         converter.structure("not-a-date", datetime)
 
 
@@ -52,7 +52,7 @@ def test_file_requires_alias_keys():
         "size": 1,
         "last_modified": None,
     }
-    with pytest.raises(ClassValidationError):
+    with pt.raises(ClassValidationError):
         # "download_url" / "_type" are Python names, not the JSON format
         converter.structure(
             {**data, "download_url": "https://example.com"}, File

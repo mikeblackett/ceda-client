@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-import pytest
+import pytest as pt
 from cattrs.errors import ClassValidationError
 
 from ceda_client.converter import converter
@@ -17,7 +17,7 @@ from ceda_client.schema import (
 FIXTURE = Path(__file__).parent / "fixtures" / "real_listing.json"
 
 
-@pytest.fixture
+@pt.fixture
 def real_listing() -> dict:
     return json.loads(FIXTURE.read_text())
 
@@ -131,7 +131,7 @@ def test_tape_only_file():
 
 
 def test_unknown_item_type_raises():
-    with pytest.raises(ClassValidationError):
+    with pt.raises(ClassValidationError):
         converter.structure(
             {
                 "path": "/x",
