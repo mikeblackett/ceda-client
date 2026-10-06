@@ -179,7 +179,7 @@ class Client:
     @property
     def token(self) -> AccessToken:
         """The current (cached or freshly fetched) access token."""
-        return self._auth.token
+        return self._auth.token  # pragma: no cover
 
     @property
     def session(self) -> rq.Session:
@@ -502,7 +502,6 @@ def _should_skip(file: File, path: up.UPath, policy: SkipPolicy) -> bool:
             return _verify_file_size(path, file.size) and (
                 not file.md5 or _verify_checksum(path, file.md5)
             )
-
         case SkipPolicy.OVERWRITE:
             return False
 

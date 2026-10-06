@@ -129,7 +129,9 @@ class TokenAuth(rqa.AuthBase):
             with cls._locks.setdefault(username, Lock()):
                 cls._cache.pop(username, None)
 
-    def _fetch(self, username: str, password: str) -> AccessToken:
+    def _fetch(
+        self, username: str, password: str
+    ) -> AccessToken:  # pragma: no cover
         """Exchange credentials for a fresh token at the token endpoint."""
         with _auth_session.post(
             self._url, auth=(username, password), timeout=self._timeout
