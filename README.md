@@ -10,3 +10,17 @@ HTTP, sidestepping the DAP2 limitation.
 
 If your data has no int64 (and nothing else specific to this client),
 prefer a tool like `pydap`.
+
+## Optional Dagster integration
+
+For Dagster definitions, install the extra:
+
+```bash
+pip install ceda-client[dagster]
+```
+
+and import the resource from the top level:
+
+```python
+from ceda_client import DagsterCEDAResource
+```

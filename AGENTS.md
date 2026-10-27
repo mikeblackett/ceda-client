@@ -8,7 +8,7 @@ uv-managed, src layout, Python 3.14 (`.python-version`; supports >=3.12).
 
 - The dev dependency group includes `ceda-client[dagster]`, so `uv sync`
   alone installs everything the test suite needs. In an install without the
-  `dagster` extra, `tests/test_dagster_ceda.py` auto-skips via
+  `dagster` extra, `tests/test_dagster.py` auto-skips via
   `pytest.importorskip`.
 - `uv run pytest` — ~76 tests, ~20s, fully offline: `tests/conftest.py`
   runs a local `ThreadingHTTPServer` mimicking CEDA.
@@ -42,7 +42,10 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   - `auth.py` + `token.py` — bearer-token auth; tokens cached in the
     class-level `TokenAuth._cache` (keyed by username); 401s are retried once
     with a fresh token by `TokenAuthRetryAdapter`.
-  - `integrations/dagster_ceda.py` — optional Dagster `ConfigurableResource`.
+  - `integrations/dagster.py` — optional Dagster `ConfigurableResource`,
+    lazily re-exported as `ceda_client.DagsterCEDAResource` (and in
+    `ceda_client.integrations`); `import ceda_client` never requires the
+    `dagster` extra.
 - `tests/` — pytest + hypothesis (shared strategies in `tests/strategies.py`);
   `tests/fixtures/real_listing.json` is a captured real CEDA listing.
 
@@ -63,5 +66,3 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   will replace its last segment.
 - Tests must never touch the network: seed/clear the token cache with the
   `token_cache` / `fresh_token_cache` / `stale_token_cache` fixtures from conftest.
-- Branch workflow: develop on `dev`, merge to `main`
-  (github.com/mikeblackett/ceda-client).

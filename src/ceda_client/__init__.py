@@ -11,7 +11,9 @@ If your data has no int64 (and nothing else specific to this client),
 prefer a DAP2 tool like ``pydap``.
 """
 
+from importlib import import_module
 from importlib.metadata import version
+from typing import Any
 
 from ceda_client.auth import TokenAuth
 from ceda_client.client import (
@@ -65,3 +67,18 @@ __all__ = [
     "TokenAuth",
     "__version__",
 ]
+
+_INTEGRATION_EXPORTS = {
+    "DagsterCEDAResource": "ceda_client.integrations.dagster"
+}
+
+
+def __getattr__(name: str) -> Any:
+    module_name = _INTEGRATION_EXPORTS.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(module_name), name)
+    # cache so subsequent access is a plain attribute lookup
+    # and name shows up in `dir()` or `vars()`.
+    globals()[name] = value
+    return value

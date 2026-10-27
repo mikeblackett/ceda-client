@@ -10,6 +10,8 @@ from ceda_client.client import (
     Client,
 )
 
+__all__ = ["DagsterCEDAResource"]
+
 
 class DagsterCEDAResource(dg.ConfigurableResource):
     """Dagster resource that creates CEDA ``Client`` instances.

@@ -12,7 +12,7 @@ from .conftest import DATA_DIR, PASSWORD, USERNAME
 dg = pt.importorskip("dagster")
 from pydantic import ValidationError
 
-from ceda_client.integrations import DagsterCEDAResource
+from ceda_client import DagsterCEDAResource
 
 
 def test_required_config():
@@ -61,3 +61,18 @@ def test_download_in_job(ceda_server, fresh_token_cache, tmp_path):
     result = job.execute_in_process(resources={"ceda": resource})
     assert result.success
     assert (tmp_path / "alpha.nc").read_bytes() == b"alpha-bytes"
+
+
+def test_top_level_export_identity():
+    import ceda_client
+    from ceda_client.integrations import dagster as dagster_mod
+
+    assert ceda_client.DagsterCEDAResource is DagsterCEDAResource
+    assert ceda_client.DagsterCEDAResource is dagster_mod.DagsterCEDAResource
+    assert "DagsterCEDAResource" in vars(ceda_client)
+
+
+def test_integrations_namespace_export():
+    from ceda_client import integrations
+
+    assert integrations.DagsterCEDAResource is DagsterCEDAResource
