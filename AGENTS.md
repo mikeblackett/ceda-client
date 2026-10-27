@@ -6,11 +6,7 @@ uv-managed, src layout, Python 3.14 (`.python-version`; supports >=3.12).
 `uv sync` installs the package editable into `.venv`; run everything with
 `uv run` from the repo root.
 
-- The dev dependency group includes `ceda-client[dagster]`, so `uv sync`
-  alone installs everything the test suite needs. In an install without the
-  `dagster` extra, `tests/test_dagster.py` auto-skips via
-  `pytest.importorskip`.
-- `uv run pytest` — ~76 tests, ~20s, fully offline: `tests/conftest.py`
+- `uv run pytest` — ~74 tests, ~20s, fully offline: `tests/conftest.py`
   runs a local `ThreadingHTTPServer` mimicking CEDA.
   Single test: `uv run pytest tests/test_client.py::test_name`.
 - `uv run ruff check .` / `uv run ruff format --check .`
@@ -35,6 +31,9 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   - `client.py` — `Client`: listings, single/parallel downloads. Per-file
     failures never raise; they come back as `Status.FAILED` in
     `DownloadResult` / `ResultBatch`.
+  - `errors.py` — exceptions raised by the client
+    (`NotOnDiskError`, `ChecksumMismatchError`, `DuplicateFilenameError`,
+    `MissingPasswordError`, and their `*Group` variants for multi-downloads).
   - `schema.py` — frozen attrs models of CEDA JSON listings;
     `Directory | File | Link` is a cattrs tagged union keyed on JSON `"type"`.
   - `converter.py` — shared cattrs `converter`; JSON↔Python renames come from
@@ -42,10 +41,6 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   - `auth.py` + `token.py` — bearer-token auth; tokens cached in the
     class-level `TokenAuth._cache` (keyed by username); 401s are retried once
     with a fresh token by `TokenAuthRetryAdapter`.
-  - `integrations/dagster.py` — optional Dagster `ConfigurableResource`,
-    lazily re-exported as `ceda_client.DagsterCEDAResource` (and in
-    `ceda_client.integrations`); `import ceda_client` never requires the
-    `dagster` extra.
 - `tests/` — pytest + hypothesis (shared strategies in `tests/strategies.py`);
   `tests/fixtures/real_listing.json` is a captured real CEDA listing.
 
@@ -65,4 +60,4 @@ HTTP downloads instead — don't "simplify" it back to a DAP2 client.
   a base URL with a path must include a trailing slash or relative paths
   will replace its last segment.
 - Tests must never touch the network: seed/clear the token cache with the
-  `token_cache` / `fresh_token_cache` / `stale_token_cache` fixtures from conftest.
+  `fresh_token_cache` / `stale_token_cache` / `empty_token_cache` fixtures from conftest.
