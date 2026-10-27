@@ -19,6 +19,7 @@ from ceda_client.auth import TokenAuth
 from ceda_client.client import (
     Client,
     DownloadResult,
+    FileManifest,
     ResultBatch,
     SkipPolicy,
     Status,
@@ -53,6 +54,7 @@ __all__ = [
     "DuplicateFilenameError",
     "DuplicateFilenameErrorGroup",
     "File",
+    "FileManifest",
     "Item",
     "ItemType",
     "Link",

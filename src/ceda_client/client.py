@@ -4,7 +4,7 @@ import hashlib
 import re
 import threading
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -32,7 +32,7 @@ from ceda_client.errors import (
 from ceda_client.schema import File, Listing
 from ceda_client.token import AccessToken
 
-__all__ = ["Client", "DownloadResult", "ResultBatch"]
+__all__ = ["Client", "DownloadResult", "FileManifest", "ResultBatch"]
 
 
 class SkipPolicy(Enum):
@@ -64,6 +64,22 @@ DEFAULT_SKIP_POLICY: Final = SkipPolicy.CHECKSUM
 # Slightly above one TCP retransmission window (3 s), per the requests docs.
 DEFAULT_CONNECT_TIMEOUT_SECONDS: Final = 3.05
 DEFAULT_READ_TIMEOUT_SECONDS: Final = 180
+
+
+@dataclass(frozen=True)
+class FileManifest:
+    """Files located in a remote directory, together with the query that found them."""
+
+    files: tuple[File, ...]
+    path: str
+    extension: str | None = None
+    pattern: str | re.Pattern | None = None
+
+    def __len__(self) -> int:
+        return len(self.files)
+
+    def __iter__(self) -> Iterator[File]:
+        return iter(self.files)
 
 
 @dataclass(frozen=True)
@@ -239,7 +255,7 @@ class Client:
         path: str,
         extension: str | None = None,
         pattern: str | re.Pattern | None = None,
-    ) -> list[File]:
+    ) -> FileManifest:
         """List the files in a remote directory, filtered by name.
 
         Args:
@@ -247,15 +263,17 @@ class Client:
             extension: If given, only files with this extension (e.g. ``".nc"``).
             pattern: If given, only files whose name matches this regex.
         """
-        result = []
+        files = []
         listing = self.get_listing(path)
         for file in listing.files:
             if extension and file.extension != extension:
                 continue
             if pattern and not re.search(pattern, file.name):
                 continue
-            result.append(file)
-        return result
+            files.append(file)
+        return FileManifest(
+            files=tuple(files), path=path, extension=extension, pattern=pattern
+        )
 
     def download(
         self,

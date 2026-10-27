@@ -50,7 +50,8 @@ def test_download_in_job(ceda_server, fresh_token_cache, tmp_path):
     @dg.op
     def download_alpha(ceda: DagsterCEDAResource) -> None:
         with ceda.get_client() as client:
-            file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+            manifest = client.get_files(DATA_DIR, pattern="^alpha")
+            file = manifest.files[0]
             result = client.download(file, tmp_path)
             assert result.status is Status.SUCCESS
 

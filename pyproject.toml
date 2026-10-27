@@ -1,48 +1,46 @@
 [project]
 name = "ceda-client"
-version = "0.4.4"
+version = "0.5.0"
 description = "Python client for the CEDA Archive JSON directory listings and file downloads."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    { name = "Mike Blackett", email = "27811528+mikeblackett@users.noreply.github.com" }
+  { name = "Mike Blackett", email = "27811528+mikeblackett@users.noreply.github.com" },
 ]
 requires-python = ">=3.12"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
-    "attrs>=26.1.0",
-    "cattrs>=23.1.0",
-    "requests>=2.34.2",
-    "universal-pathlib>=0.3.10",
+  "attrs>=26.1.0",
+  "cattrs>=23.1.0",
+  "requests>=2.34.2",
+  "universal-pathlib>=0.3.10",
 ]
 
 [project.urls]
 Repository = "https://github.com/mikeblackett/ceda-client"
 
 [project.optional-dependencies]
-dagster = [
-    "dagster>=1.13.24",
-]
+dagster = ["dagster>=1.13.24"]
 
 [dependency-groups]
 dev = [
-    "ceda-client[dagster]",
-    "hypothesis>=6.168.0",
-    "jupyterlab>=4.6.4",
-    "pytest>=8.4.0",
-    "pyright>=1.1.414",
-    "pytest-mock>=3.15.1",
-    "ruff>=0.16.8",
-    "coverage>=7.16.1",
+  "ceda-client[dagster]",
+  "hypothesis>=6.168.0",
+  "jupyterlab>=4.6.4",
+  "pytest>=8.4.0",
+  "pyright>=1.1.414",
+  "pytest-mock>=3.15.1",
+  "ruff>=0.16.8",
+  "coverage>=7.16.1",
 ]
 
 [build-system]

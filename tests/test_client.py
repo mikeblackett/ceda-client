@@ -85,9 +85,29 @@ def test_get_listing(client):
     assert len(listing.directories) == 1
 
 
+def test_get_files_no_filters(client):
+    manifest = client.get_files(DATA_DIR)
+    assert manifest.path == DATA_DIR
+    assert manifest.extension is None
+    assert manifest.pattern is None
+    assert len(manifest) == 7
+    assert sorted(f.name for f in manifest) == [
+        "alpha.nc",
+        "alpha.nc",
+        "beta.nc",
+        "corrupt.nc",
+        "gamma.txt",
+        "missing.nc",
+        "nomd5.dat",
+    ]
+
+
 def test_get_files_extension_filter(client):
-    files = client.get_files(DATA_DIR, extension=".nc")
-    assert {f.name for f in files} == {
+    manifest = client.get_files(DATA_DIR, extension=".nc")
+    assert manifest.path == DATA_DIR
+    assert manifest.extension == ".nc"
+    assert manifest.pattern is None
+    assert {f.name for f in manifest.files} == {
         "alpha.nc",
         "beta.nc",
         "corrupt.nc",
@@ -96,13 +116,19 @@ def test_get_files_extension_filter(client):
 
 
 def test_get_files_pattern_filter(client):
-    files = client.get_files(DATA_DIR, pattern=r"^(alpha|gamma)")
-    assert {f.name for f in files} == {"alpha.nc", "gamma.txt"}
+    manifest = client.get_files(DATA_DIR, pattern=r"^(alpha|gamma)")
+    assert manifest.path == DATA_DIR
+    assert manifest.extension is None
+    assert manifest.pattern == r"^(alpha|gamma)"
+    assert {f.name for f in manifest.files} == {"alpha.nc", "gamma.txt"}
 
 
 def test_get_files_combined_filters(client):
-    files = client.get_files(DATA_DIR, extension=".nc", pattern="^a")
-    assert {f.name for f in files} == {"alpha.nc"}
+    manifest = client.get_files(DATA_DIR, extension=".nc", pattern="^a")
+    assert manifest.path == DATA_DIR
+    assert manifest.extension == ".nc"
+    assert manifest.pattern == "^a"
+    assert {f.name for f in manifest.files} == {"alpha.nc"}
 
 
 def test_get_json_listing_error_propagates(client):
@@ -113,7 +139,8 @@ def test_get_json_listing_error_propagates(client):
 
 
 def test_download_success(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.SUCCESS
     assert result.target.read_bytes() == b"alpha-bytes"
@@ -121,7 +148,8 @@ def test_download_success(client, tmp_path):
 
 
 def test_download_creates_nested_target(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     target = tmp_path / "a" / "b"
     result = client.download(file, target)
     assert result.status is Status.SUCCESS
@@ -129,7 +157,8 @@ def test_download_creates_nested_target(client, tmp_path):
 
 
 def test_download_checksum_mismatch_fails(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^corrupt")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^corrupt")
+    file = manifest.files[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.FAILED
     assert isinstance(result.error, ChecksumMismatchError)
@@ -145,7 +174,8 @@ def test_download_checksum_mismatch_fails(client, tmp_path):
 
 
 def test_download_http_error_fails(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^missing")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^missing")
+    file = manifest.files[0]
     result = client.download(file, tmp_path)
     assert result.status is Status.FAILED
     assert isinstance(result.error, rq.HTTPError)
@@ -153,7 +183,8 @@ def test_download_http_error_fails(client, tmp_path):
 
 
 def test_download_interrupt_removes_temp_file(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     client._session = cast("rq.Session", _InterruptingSession())
     with pt.raises(KeyboardInterrupt):
         client.download(file, tmp_path, skip_policy=SkipPolicy.OVERWRITE)
@@ -164,7 +195,7 @@ def test_download_interrupt_removes_temp_file(client, tmp_path):
 def test_download_multi_interrupt_shuts_down_executor(
     client, tmp_path, mocker: MockerFixture
 ):
-    files = client.get_files(DATA_DIR, pattern=r"^(alpha|beta)")
+    manifest = client.get_files(DATA_DIR, pattern=r"^(alpha|beta)")
     shutdown = mocker.spy(ThreadPoolExecutor, "shutdown")
     sessions: list[_InterruptingSession] = []
 
@@ -175,7 +206,7 @@ def test_download_multi_interrupt_shuts_down_executor(
 
     with pt.raises(KeyboardInterrupt):
         client.download_multi(
-            files, tmp_path, mirror_dirs=True, session_factory=factory
+            manifest.files, tmp_path, mirror_dirs=True, session_factory=factory
         )
 
     assert any(
@@ -188,7 +219,8 @@ def test_download_multi_interrupt_shuts_down_executor(
 
 def test_skip_exists(client, tmp_path):
     (tmp_path / "alpha.nc").write_bytes(b"whatever, wrong size")
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.EXISTS)
     assert result.status is Status.SKIPPED
     assert (tmp_path / "alpha.nc").read_bytes() == b"whatever, wrong size"
@@ -198,14 +230,16 @@ def test_skip_size_match(client, tmp_path):
     (tmp_path / "alpha.nc").write_bytes(
         b"X" * 11
     )  # same size, different content
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.SIZE)
     assert result.status is Status.SKIPPED
 
 
 def test_skip_size_mismatch_redownloads(client, tmp_path):
     (tmp_path / "alpha.nc").write_bytes(b"X" * 10)
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.SIZE)
     assert result.status is Status.SUCCESS
     assert (tmp_path / "alpha.nc").read_bytes() == b"alpha-bytes"
@@ -213,28 +247,32 @@ def test_skip_size_mismatch_redownloads(client, tmp_path):
 
 def test_skip_checksum_match(client, tmp_path):
     (tmp_path / "alpha.nc").write_bytes(b"alpha-bytes")
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SKIPPED
 
 
 def test_skip_checksum_mismatch_redownloads(client, tmp_path):
     (tmp_path / "alpha.nc").write_bytes(b"X" * 11)  # same size, wrong md5
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SUCCESS
     assert (tmp_path / "alpha.nc").read_bytes() == b"alpha-bytes"
 
 
 def test_skip_checksum_missing_file_redownloads(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SUCCESS
 
 
 def test_overwrite_always_redownloads(client, tmp_path):
     (tmp_path / "alpha.nc").write_bytes(b"alpha-bytes")
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.OVERWRITE)
     assert result.status is Status.SUCCESS
 
@@ -242,7 +280,8 @@ def test_overwrite_always_redownloads(client, tmp_path):
 def test_download_target_is_file_raises(client, tmp_path):
     target = tmp_path / "notadir"
     target.write_bytes(b"x")
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     with pt.raises(NotADirectoryError):
         client.download(file, target)
 
@@ -285,8 +324,8 @@ def test_download_multi_mixed_location_raises(client, tmp_path):
 
 
 def test_download_multi_all_success(client, tmp_path):
-    files = client.get_files(DATA_DIR, pattern=r"^(beta|gamma)")
-    batch = client.download_multi(files, tmp_path)
+    manifest = client.get_files(DATA_DIR, pattern=r"^(beta|gamma)")
+    batch = client.download_multi(manifest.files, tmp_path)
     assert dict(batch.counter) == {Status.SUCCESS: 2}
     assert len(batch.success) == 2
     assert batch.failed == ()
@@ -296,8 +335,8 @@ def test_download_multi_all_success(client, tmp_path):
 
 
 def test_download_multi_mixed_results(client, tmp_path):
-    files = client.get_files(DATA_DIR, pattern=r"^(beta|corrupt|missing)")
-    batch = client.download_multi(files, tmp_path)
+    manifest = client.get_files(DATA_DIR, pattern=r"^(beta|corrupt|missing)")
+    batch = client.download_multi(manifest.files, tmp_path)
     assert batch.counter[Status.SUCCESS] == 1
     assert batch.counter[Status.FAILED] == 2
     assert {r.file.name for r in batch.failed} == {"corrupt.nc", "missing.nc"}
@@ -306,8 +345,8 @@ def test_download_multi_mixed_results(client, tmp_path):
 
 def test_download_multi_skips_existing(client, tmp_path):
     (tmp_path / "beta.nc").write_bytes(b"beta-bytes")
-    files = client.get_files(DATA_DIR, pattern=r"^(beta|gamma)")
-    batch = client.download_multi(files, tmp_path)
+    manifest = client.get_files(DATA_DIR, pattern=r"^(beta|gamma)")
+    batch = client.download_multi(manifest.files, tmp_path)
     assert batch.counter[Status.SUCCESS] == 1
     assert batch.counter[Status.SKIPPED] == 1
     assert batch.skipped[0].file.name == "beta.nc"
@@ -323,20 +362,23 @@ def test_download_empty_md5_skips_size_match(client, tmp_path):
     (tmp_path / "nomd5.dat").write_bytes(
         b"X" * 12
     )  # same size, different content
-    file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^nomd5")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SKIPPED
 
 
 def test_download_empty_md5_redownloads_size_mismatch(client, tmp_path):
     (tmp_path / "nomd5.dat").write_bytes(b"X" * 2)  # different size
-    file = client.get_files(DATA_DIR, pattern="^nomd5")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^nomd5")
+    file = manifest.files[0]
     result = client.download(file, tmp_path, skip_policy=SkipPolicy.CHECKSUM)
     assert result.status is Status.SUCCESS
 
 
 def test_download_mirror_dirs(client, tmp_path):
-    file = client.get_files(DATA_DIR, pattern="^alpha")[0]
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    file = manifest.files[0]
     assert str(file.path) == f"/{DATA_DIR}/alpha.nc"
     result = client.download(file, tmp_path, mirror_dirs=True)
     assert result.status is Status.SUCCESS
@@ -387,12 +429,12 @@ def test_download_multi_multiple_duplicate_filenames_raise(client, tmp_path):
 
 
 def test_download_multi_mirror_dirs(client, tmp_path):
-    files = client.get_files(DATA_DIR, pattern="^alpha")
-    assert {str(f.path) for f in files} == {
+    manifest = client.get_files(DATA_DIR, pattern="^alpha")
+    assert {str(f.path) for f in manifest.files} == {
         f"/{DATA_DIR}/alpha.nc",
         "/other-tree/alpha.nc",
     }
-    batch = client.download_multi(files, tmp_path, mirror_dirs=True)
+    batch = client.download_multi(manifest.files, tmp_path, mirror_dirs=True)
     assert dict(batch.counter) == {Status.SUCCESS: 2}
     assert (tmp_path / DATA_DIR / "alpha.nc").read_bytes() == b"alpha-bytes"
     assert (
